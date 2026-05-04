@@ -13,6 +13,7 @@
   <header class="painel-header">
     <div class="painel-header__logo">FormulariO</div>
     <nav class="painel-header__nav">
+      <a href="{{ url_for('painel.index') }}" class="nav-btn nav-btn--home" title="Início">🏠 Início</a>
 
       {% if current_user.nivel <= 1 %}
       <!-- Usuários -->
