@@ -9,9 +9,13 @@ def create_app():
 
     # ── Configuração ──────────────────────────────────────────────
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-        "DATABASE_URL", "sqlite:///formulario.db"
-    )
+    _db_url = os.environ.get("DATABASE_URL", "sqlite:///formulario.db")
+    # pg8000 requires postgresql+pg8000:// dialect prefix
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql+pg8000://", 1)
+    elif _db_url.startswith("postgresql://"):
+        _db_url = _db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # ── Extensões ─────────────────────────────────────────────────
