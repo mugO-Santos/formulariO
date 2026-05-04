@@ -1,6 +1,10 @@
-# FORMULÁRIO ONLINE
+# Formulário Online — Gestão de Pacientes
 
-## OBJETIVO GERAL
+> Sistema web para gerenciamento de dados de pacientes com formulário público, painel administrativo e controle de acesso por níveis.
+
+---
+
+## Objetivo Geral
 
 Sistema para gerenciamento de dados de pacientes, o link do formulário é enviado ao paciente, o mesmo preenchera os dados obrigatórios, aceitara o termo LGPD para uso dos dados para fins hospitalares. Ao final do preenchimento e aceite do termo, o paciente clica em enviar formulário, internamente um Perfil com os dados desse paciente é criado automaticamente, ficando disponível para visualização, edição e exportação em PDF.
 
@@ -49,7 +53,7 @@ Sistema para gerenciamento de dados de pacientes, o link do formulário é envia
 - Senhas armazenadas com hash seguro (Werkzeug)
 
 
-# OBSERVAÇÕES
+## OBSERVAÇÕES
 
 - Login e senha
     - Login: Nome curto
@@ -74,7 +78,7 @@ Sistema para gerenciamento de dados de pacientes, o link do formulário é envia
     - O responsável exclui o perfil atual e cria um novo com nova senha
 
 
-# PÁGINAS
+## PÁGINAS
 
 ## Formulário
 1. Layout simples em formato de cartão de visita A4
@@ -82,7 +86,7 @@ Sistema para gerenciamento de dados de pacientes, o link do formulário é envia
 3. Div com Endereço da Clínica e link do Maps depois do Termo LGPD
     1. Endereço: Av. São João, 1522 - Jardim Esplanada, São José dos Campos - SP, 12242-840
 4. Header fino horizontal com botão Área de Login — hidden, visível somente ao passar o mouse
-5. Footer elegante, sem background, © 2026 Todos os direitos reservados a <mugO Santos>
+5. Footer elegante, sem background, © 2026 Todos os direitos reservados a '<mugO Santos>'
 6. Dados do Formulário
     1. Nome Paciente
     2. Nome da Mãe
@@ -156,7 +160,14 @@ Ao clicar em Ver Perfil, será aberta uma nova aba com o Perfil do Paciente, exi
 - Cada entrada exibe: usuário responsável, ação realizada, data e horário
 
 
-# Layout
+## Layout
+
 
 - Cores Gerais:
     - Branco e Azul Hospitalar
+
+---
+
+## Licença
+
+© 2026 Todos os direitos reservados a `<mugO Santos>`
