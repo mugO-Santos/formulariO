@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, flash, redirect, url_for
+from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Paciente, Log
 from app.fuzzy import buscar_medico
@@ -40,7 +41,12 @@ def index():
             aceite_lgpd_em=datetime.now(timezone.utc),
         )
         db.session.add(paciente)
-        db.session.flush()  # gera o id
+        try:
+            db.session.flush()  # gera o id
+        except IntegrityError:
+            db.session.rollback()
+            flash("Este CPF já está cadastrado no sistema.", "danger")
+            return render_template("formulario.html", dados=request.form)
 
         db.session.add(Log(
             paciente_id=paciente.id,
