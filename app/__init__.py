@@ -20,9 +20,11 @@ def create_app():
     elif _db_url.startswith("postgresql://"):
         _db_url = _db_url.replace("postgresql://", "postgresql+pg8000://", 1)
 
-    # pg8000 não aceita sslmode na URL; usa ssl_context separadamente
-    if "sslmode=" in _db_url:
-        _db_url = re.sub(r"[?&]sslmode=[^&]*", "", _db_url).rstrip("?").rstrip("&")
+    # pg8000 não aceita sslmode/channel_binding na URL; usa ssl_context separadamente
+    if "postgresql+pg8000://" in _db_url:
+        _db_url = re.sub(r"[?&]sslmode=[^&]*", "", _db_url)
+        _db_url = re.sub(r"[?&]channel_binding=[^&]*", "", _db_url)
+        _db_url = re.sub(r"\?&", "?", _db_url).rstrip("?").rstrip("&")
         _engine_options["connect_args"] = {"ssl_context": ssl.create_default_context()}
 
     app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
