@@ -1,4 +1,6 @@
 import os
+import re
+import ssl
 from flask import Flask
 from .extensions import db, login_manager
 from .models import Usuario
@@ -10,13 +12,23 @@ def create_app():
     # ── Configuração ──────────────────────────────────────────────
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///formulario.db")
+    _engine_options = {}
+
     # pg8000 requires postgresql+pg8000:// dialect prefix
     if _db_url.startswith("postgres://"):
         _db_url = _db_url.replace("postgres://", "postgresql+pg8000://", 1)
     elif _db_url.startswith("postgresql://"):
         _db_url = _db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+
+    # pg8000 não aceita sslmode na URL; usa ssl_context separadamente
+    if "sslmode=" in _db_url:
+        _db_url = re.sub(r"[?&]sslmode=[^&]*", "", _db_url).rstrip("?").rstrip("&")
+        _engine_options["connect_args"] = {"ssl_context": ssl.create_default_context()}
+
     app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    if _engine_options:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = _engine_options
 
     # ── Extensões ─────────────────────────────────────────────────
     db.init_app(app)
