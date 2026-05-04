@@ -1,0 +1,43 @@
+{% extends "base_public.html" %}
+{% block title %}Login{% endblock %}
+
+{% block body %}
+<main class="login-main">
+  <div class="login-card">
+    <h1 class="login-card__title">Área Restrita</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert--{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.login') }}">
+      <div class="form-group">
+        <label for="nome">Usuário</label>
+        <input type="text" id="nome" name="nome" required autofocus />
+      </div>
+      <div class="form-group">
+        <label for="senha">Senha</label>
+        <div class="input-icon">
+          <input type="password" id="senha" name="senha" required />
+          <button type="button" class="icon-btn" id="btn-ver-senha" title="Mostrar senha">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn--primary btn--full">Entrar</button>
+    </form>
+
+    <details class="esqueci-senha">
+      <summary>Esqueci minha senha</summary>
+      <form method="POST" action="{{ url_for('auth.esqueci_senha') }}">
+        <div class="form-group">
+          <label for="nome_esqueci">Seu nome de usuário</label>
+          <input type="text" id="nome_esqueci" name="nome" required />
+        </div>
+        <button type="submit" class="btn btn--secondary btn--full">Solicitar redefinição</button>
+      </form>
+    </details>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='js/formulario.js') }}"></script>
+{% endblock %}

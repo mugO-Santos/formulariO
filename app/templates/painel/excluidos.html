@@ -1,0 +1,21 @@
+{% extends "base_painel.html" %}
+{% block title %}Perfis Excluídos{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Perfis Excluídos (últimos 60 dias)</h1>
+{% if pacientes %}
+<ul class="paciente-lista">
+  {% for p in pacientes %}
+  <li class="paciente-item">
+    <span>{{ p.nome }}</span>
+    <small>excluído em {{ p.excluido_em.strftime('%d/%m/%Y') }}</small>
+    <form method="POST" action="{{ url_for('painel.recuperar_paciente', pid=p.id) }}">
+      <button type="submit" class="btn btn--sm btn--success">Recuperar</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty">Nenhum perfil excluído nos últimos 60 dias.</p>
+{% endif %}
+{% endblock %}

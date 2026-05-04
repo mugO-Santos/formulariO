@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Painel{% endblock %} — Gestão de Pacientes</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/painel.css') }}" />
+  {% block head %}{% endblock %}
+</head>
+<body class="painel-body">
+
+  <header class="painel-header">
+    <div class="painel-header__logo">FormulariO</div>
+    <nav class="painel-header__nav">
+
+      {% if current_user.nivel <= 1 %}
+      <!-- Usuários -->
+      <button class="nav-btn" onclick="openModal('modal-usuarios')">Usuários</button>
+      <!-- Médicos -->
+      <button class="nav-btn" onclick="openModal('modal-medicos')">Médicos</button>
+      {% endif %}
+
+      {% if current_user.nivel == 0 %}
+      <a href="{{ url_for('painel.excluidos') }}" class="nav-btn">Excluídos</a>
+      {% endif %}
+
+      {% if current_user.nivel <= 1 %}
+      <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
+      {% endif %}
+
+      <!-- Perfil -->
+      <button class="nav-btn" onclick="openModal('modal-perfil')">Perfil</button>
+
+      <!-- Notificações -->
+      {% set notifs = current_user.notificacoes | selectattr('lida', 'equalto', false) | list %}
+      {% if notifs %}
+      <button class="nav-btn nav-btn--alert" onclick="openModal('modal-notif')">
+        🔔 {{ notifs | length }}
+      </button>
+      {% endif %}
+
+      <a href="{{ url_for('auth.logout') }}" class="nav-btn nav-btn--logout">Sair</a>
+    </nav>
+  </header>
+
+  <main class="painel-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert--{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Modal Perfil -->
+  <div id="modal-perfil" class="modal hidden">
+    <div class="modal__box">
+      <h2>Meu Perfil</h2>
+      <p><strong>Usuário:</strong> {{ current_user.nome }}</p>
+      <p><strong>Cargo:</strong> {{ current_user.cargo.nome }}</p>
+      <form method="POST" action="{{ url_for('painel.meu_perfil') }}">
+        <label>Nova Senha
+          <input type="password" name="nova_senha" minlength="6" required />
+        </label>
+        <button type="submit" class="btn btn--primary">Salvar</button>
+      </form>
+      <button class="modal__close" onclick="closeModal('modal-perfil')">✕</button>
+    </div>
+  </div>
+
+  <!-- Modal Notificações -->
+  <div id="modal-notif" class="modal hidden">
+    <div class="modal__box">
+      <h2>Notificações</h2>
+      {% for n in current_user.notificacoes | selectattr('lida', 'equalto', false) | list %}
+        <p class="notif-item">{{ n.mensagem }}</p>
+      {% endfor %}
+      <button class="modal__close" onclick="closeModal('modal-notif')">✕</button>
+    </div>
+  </div>
+
+  {% if current_user.nivel <= 1 %}
+  <!-- Modal Usuários -->
+  <div id="modal-usuarios" class="modal hidden">
+    <div class="modal__box modal__box--wide">
+      <h2>Usuários</h2>
+      <a href="{{ url_for('usuarios.index') }}" class="btn btn--primary">Gerenciar Usuários</a>
+      <button class="modal__close" onclick="closeModal('modal-usuarios')">✕</button>
+    </div>
+  </div>
+
+  <!-- Modal Médicos -->
+  <div id="modal-medicos" class="modal hidden">
+    <div class="modal__box modal__box--wide">
+      <h2>Médicos</h2>
+      <a href="{{ url_for('medicos.index') }}" class="btn btn--primary">Gerenciar Médicos</a>
+      <button class="modal__close" onclick="closeModal('modal-medicos')">✕</button>
+    </div>
+  </div>
+  {% endif %}
+
+  <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,22 @@
+{% extends "base_painel.html" %}
+{% block title %}Meu Perfil{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Meu Perfil</h1>
+<p><strong>Usuário:</strong> {{ current_user.nome }}</p>
+<p><strong>Cargo:</strong> {{ current_user.cargo.nome }} (nível {{ current_user.nivel }})</p>
+
+<h2>Alterar Senha</h2>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert--{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+<form method="POST" action="{{ url_for('painel.meu_perfil') }}" class="form-edit" style="max-width:360px">
+  <div class="form-group">
+    <label>Nova Senha</label>
+    <input type="password" name="nova_senha" minlength="6" required />
+  </div>
+  <button type="submit" class="btn btn--primary">Salvar</button>
+</form>
+{% endblock %}

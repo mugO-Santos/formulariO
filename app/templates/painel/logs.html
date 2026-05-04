@@ -1,0 +1,28 @@
+{% extends "base_painel.html" %}
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Logs de Ações</h1>
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Data/Hora</th>
+      <th>Usuário</th>
+      <th>Paciente</th>
+      <th>Ação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for log in logs %}
+    <tr>
+      <td>{{ log.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ log.usuario.nome if log.usuario else '—' }}</td>
+      <td>{{ log.paciente.nome if log.paciente else '—' }}</td>
+      <td>{{ log.acao }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">Nenhum log registrado.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

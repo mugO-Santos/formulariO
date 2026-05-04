@@ -1,0 +1,58 @@
+{% extends "base_painel.html" %}
+{% block title %}Usuários{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Usuários</h1>
+
+<h2>Novo Usuário</h2>
+<form method="POST" action="{{ url_for('usuarios.novo') }}" class="form-inline">
+  <input type="text" name="nome" placeholder="Nome" required />
+  <input type="password" name="senha" placeholder="Senha (mín. 6)" minlength="6" required />
+  <select name="cargo_id" required>
+    <option value="">Cargo</option>
+    {% for c in cargos %}
+      {% if c.nivel >= current_user.nivel %}
+        <option value="{{ c.id }}">{{ c.nome }} (nível {{ c.nivel }})</option>
+      {% endif %}
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn--primary">Criar</button>
+</form>
+
+<h2>Novo Cargo</h2>
+<form method="POST" action="{{ url_for('usuarios.novo_cargo') }}" class="form-inline">
+  <input type="text" name="nome" placeholder="Nome do cargo" required />
+  <select name="nivel" required>
+    {% for n in range(current_user.nivel, 3) %}
+      <option value="{{ n }}">Nível {{ n }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn--secondary">Criar Cargo</button>
+</form>
+
+<h2>Usuários Ativos</h2>
+<table class="tabela">
+  <thead>
+    <tr><th>Nome</th><th>Cargo</th><th>Nível</th><th>Ações</th></tr>
+  </thead>
+  <tbody>
+    {% for u in usuarios %}
+    <tr>
+      <td>{{ u.nome }}</td>
+      <td>{{ u.cargo.nome }}</td>
+      <td>{{ u.nivel }}</td>
+      <td>
+        {% if u.id != current_user.id and u.nivel >= current_user.nivel %}
+        <form method="POST" action="{{ url_for('usuarios.excluir', uid=u.id) }}"
+              onsubmit="return confirm('Desativar {{ u.nome }}?')">
+          <button type="submit" class="btn btn--sm btn--danger">Desativar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">Nenhum usuário.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

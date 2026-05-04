@@ -1,0 +1,169 @@
+{% extends "base_public.html" %}
+{% block title %}Formulário de Cadastro{% endblock %}
+
+{% block body %}
+<!-- Header oculto com link para login -->
+<header class="form-header">
+  <a href="{{ url_for('auth.login') }}" class="form-header__login-link">Área de Login</a>
+</header>
+
+<main class="form-main">
+  <div class="form-card">
+    <h1 class="form-card__title">Cadastro de Paciente</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert--{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('formulario.index') }}" novalidate>
+
+      <fieldset class="form-section">
+        <legend>Dados Pessoais</legend>
+
+        <div class="form-group">
+          <label for="nome">Nome do Paciente *</label>
+          <input type="text" id="nome" name="nome" value="{{ dados.get('nome','') }}" required />
+        </div>
+
+        <div class="form-group">
+          <label for="nome_mae">Nome da Mãe *</label>
+          <input type="text" id="nome_mae" name="nome_mae" value="{{ dados.get('nome_mae','') }}" required />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cpf">CPF *</label>
+            <input type="text" id="cpf" name="cpf" maxlength="14" placeholder="000.000.000-00"
+                   value="{{ dados.get('cpf','') }}" required />
+          </div>
+          <div class="form-group">
+            <label for="rg">RG</label>
+            <input type="text" id="rg" name="rg" value="{{ dados.get('rg','') }}" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="data_nascimento">Data de Nascimento *</label>
+            <input type="date" id="data_nascimento" name="data_nascimento"
+                   value="{{ dados.get('data_nascimento','') }}" required />
+          </div>
+          <div class="form-group">
+            <label for="estado_civil">Estado Civil *</label>
+            <select id="estado_civil" name="estado_civil" required>
+              {% for op in ['Casado','Solteiro','Divorciado','Viúvo'] %}
+                <option value="{{ op }}" {% if dados.get('estado_civil') == op %}selected{% endif %}>{{ op }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="profissao">Profissão</label>
+          <input type="text" id="profissao" name="profissao" value="{{ dados.get('profissao','') }}" />
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Contato</legend>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email" value="{{ dados.get('email','') }}" />
+          </div>
+          <div class="form-group">
+            <label for="telefone">Telefone *</label>
+            <input type="tel" id="telefone" name="telefone" value="{{ dados.get('telefone','') }}" required />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Endereço</legend>
+
+        <div class="form-row">
+          <div class="form-group form-group--cep">
+            <label for="cep">CEP</label>
+            <div class="input-icon">
+              <input type="text" id="cep" name="cep" maxlength="9" placeholder="00000-000"
+                     value="{{ dados.get('cep','') }}" />
+              <button type="button" class="icon-btn" id="btn-busca-cep" title="Buscar CEP">🔍</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group form-group--grow">
+            <label for="endereco">Endereço</label>
+            <input type="text" id="endereco" name="endereco" value="{{ dados.get('endereco','') }}" />
+          </div>
+          <div class="form-group form-group--small">
+            <label for="numero">N°</label>
+            <input type="text" id="numero" name="numero" value="{{ dados.get('numero','') }}" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bairro">Bairro</label>
+            <input type="text" id="bairro" name="bairro" value="{{ dados.get('bairro','') }}" />
+          </div>
+          <div class="form-group">
+            <label for="cidade">Cidade</label>
+            <input type="text" id="cidade" name="cidade" value="{{ dados.get('cidade','') }}" />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Médico</legend>
+        <div class="form-group">
+          <label for="nome_medico">Nome do Médico</label>
+          <input type="text" id="nome_medico" name="nome_medico" value="{{ dados.get('nome_medico','') }}" />
+        </div>
+      </fieldset>
+
+      <!-- Aceite LGPD -->
+      <div class="lgpd-box">
+        <label class="lgpd-box__aceite">
+          <input type="checkbox" name="aceite_lgpd" value="1" required />
+          Ao continuar, declaro que li e concordo com o
+          <button type="button" class="lgpd-link" id="btn-abrir-lgpd">Termo LGPD</button>.
+        </label>
+      </div>
+
+      <!-- Modal Termo LGPD -->
+      <div id="modal-lgpd" class="modal-lgpd hidden" role="dialog" aria-modal="true" aria-labelledby="lgpd-titulo">
+        <div class="modal-lgpd__box">
+          <h2 id="lgpd-titulo">Termo de Uso de Dados — LGPD</h2>
+          <div class="modal-lgpd__corpo">
+            <p>Ao continuar, declaro que li e concordo com o tratamento dos meus dados pessoais e sensíveis pela clínica, conforme a <strong>Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018)</strong>, para fins de atendimento, cadastro, prontuário médico, comunicação e cumprimento de obrigações legais.</p>
+            <p>Estou ciente de que meus dados poderão ser compartilhados com profissionais de saúde, convênios e parceiros, quando necessário.</p>
+            <p>Para mais informações, consulte o Aviso de Privacidade.</p>
+          </div>
+          <button type="button" class="btn btn--primary" id="btn-fechar-lgpd">Fechar</button>
+        </div>
+      </div>
+
+      <!-- Endereço da Clínica -->
+      <div class="clinica-box">
+        <p>📍 <a href="https://maps.google.com/?q=Av.+São+João,+1522,+Jardim+Esplanada,+São+José+dos+Campos,+SP"
+                 target="_blank" rel="noopener">
+          Av. São João, 1522 - Jardim Esplanada, São José dos Campos - SP, 12242-840
+        </a></p>
+      </div>
+
+      <button type="submit" class="btn btn--primary btn--full">Enviar Formulário</button>
+    </form>
+  </div>
+</main>
+
+<footer class="form-footer">
+  © 2026 Todos os direitos reservados a &lt;mugO Santos&gt;
+</footer>
+
+<script src="{{ url_for('static', filename='js/formulario.js') }}"></script>
+{% endblock %}

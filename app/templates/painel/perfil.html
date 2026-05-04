@@ -1,0 +1,102 @@
+{% extends "base_painel.html" %}
+{% block title %}{{ paciente.nome }}{% endblock %}
+
+{% block content %}
+<div class="perfil">
+  <div class="perfil__header">
+    <h1>{{ paciente.nome }}</h1>
+    <div class="perfil__acoes">
+      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" target="_blank" class="btn btn--secondary">Imprimir PDF</a>
+      {% if current_user.nivel <= 1 %}
+      <a href="{{ url_for('painel.editar_paciente', pid=paciente.id) }}" class="btn btn--primary">Editar</a>
+      <form method="POST" action="{{ url_for('painel.excluir_paciente', pid=paciente.id) }}"
+            onsubmit="return confirm('Confirma exclusão? O perfil ficará em modo excluído por 60 dias.')">
+        <button type="submit" class="btn btn--danger">Excluir</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="perfil__section">
+    <h2>Dados Pessoais</h2>
+    <dl class="dados">
+      <dt>Nome da Mãe</dt><dd>{{ paciente.nome_mae }}</dd>
+      <dt>CPF</dt><dd>{{ paciente.cpf }}</dd>
+      <dt>RG</dt><dd>{{ paciente.rg or '—' }}</dd>
+      <dt>Data de Nascimento</dt><dd>{{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</dd>
+      <dt>Estado Civil</dt><dd>{{ paciente.estado_civil }}</dd>
+      <dt>Profissão</dt><dd>{{ paciente.profissao or '—' }}</dd>
+    </dl>
+  </section>
+
+  <section class="perfil__section">
+    <h2>Contato</h2>
+    <dl class="dados">
+      <dt>E-mail</dt><dd>{{ paciente.email or '—' }}</dd>
+      <dt>Telefone</dt><dd>{{ paciente.telefone }}</dd>
+    </dl>
+  </section>
+
+  <section class="perfil__section">
+    <h2>Endereço</h2>
+    <dl class="dados">
+      <dt>CEP</dt><dd>{{ paciente.cep or '—' }}</dd>
+      <dt>Endereço</dt><dd>{{ paciente.endereco or '—' }}, {{ paciente.numero or 's/n' }}</dd>
+      <dt>Bairro</dt><dd>{{ paciente.bairro or '—' }}</dd>
+      <dt>Cidade</dt><dd>{{ paciente.cidade or '—' }}</dd>
+    </dl>
+  </section>
+
+  <section class="perfil__section">
+    <h2>Médico</h2>
+    <dl class="dados">
+      <dt>Médico</dt>
+      <dd>
+        {% if paciente.medico %}
+          {{ paciente.medico.nome }} — CRM {{ paciente.medico.crm }}
+        {% else %}
+          <span class="alerta">Não vinculado</span>
+          {% if paciente.nome_medico_digitado %}
+            <small>(digitou: "{{ paciente.nome_medico_digitado }}")</small>
+          {% endif %}
+        {% endif %}
+      </dd>
+    </dl>
+  </section>
+
+  {% if current_user.nivel == 0 %}
+  <section class="perfil__section">
+    <h2>LGPD</h2>
+    <dl class="dados">
+      <dt>Aceite</dt>
+      <dd>{{ 'Sim' if paciente.aceite_lgpd else 'Não' }}
+        {% if paciente.aceite_lgpd_em %}
+          — {{ paciente.aceite_lgpd_em.strftime('%d/%m/%Y %H:%M') }}
+        {% endif %}
+      </dd>
+    </dl>
+  </section>
+  {% endif %}
+
+  <section class="perfil__section">
+    <h2>Observações</h2>
+    <form method="POST" action="{{ url_for('painel.editar_observacoes', pid=paciente.id) }}">
+      <textarea name="observacoes" rows="5" class="obs-textarea">{{ paciente.observacoes or '' }}</textarea>
+      <button type="submit" class="btn btn--primary">Salvar Observações</button>
+    </form>
+  </section>
+
+  <section class="perfil__section">
+    <h2>Histórico</h2>
+    <ul class="log-lista">
+      {% for log in paciente.logs | sort(attribute='criado_em', reverse=True) %}
+      <li class="log-item">
+        <span class="log-data">{{ log.criado_em.strftime('%d/%m/%Y %H:%M') }}</span>
+        {% if log.usuario %}<span class="log-usuario">{{ log.usuario.nome }}</span>{% endif %}
+        <span class="log-acao">{{ log.acao }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base_painel.html" %}
+{% block title %}Editar Paciente{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Editar — {{ paciente.nome }}</h1>
+<form method="POST" class="form-edit">
+  <div class="form-row">
+    <div class="form-group">
+      <label>Nome *</label>
+      <input type="text" name="nome" value="{{ paciente.nome }}" required />
+    </div>
+    <div class="form-group">
+      <label>Nome da Mãe *</label>
+      <input type="text" name="nome_mae" value="{{ paciente.nome_mae }}" required />
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Telefone *</label>
+      <input type="tel" name="telefone" value="{{ paciente.telefone }}" required />
+    </div>
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" name="email" value="{{ paciente.email or '' }}" />
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Profissão</label>
+      <input type="text" name="profissao" value="{{ paciente.profissao or '' }}" />
+    </div>
+    <div class="form-group">
+      <label>Estado Civil *</label>
+      <select name="estado_civil" required>
+        {% for op in ['Casado','Solteiro','Divorciado','Viúvo'] %}
+          <option value="{{ op }}" {% if paciente.estado_civil == op %}selected{% endif %}>{{ op }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group form-group--cep">
+      <label>CEP</label>
+      <div class="input-icon">
+        <input type="text" id="cep" name="cep" maxlength="9" value="{{ paciente.cep or '' }}" />
+        <button type="button" class="icon-btn" id="btn-busca-cep">🔍</button>
+      </div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group form-group--grow">
+      <label>Endereço</label>
+      <input type="text" id="endereco" name="endereco" value="{{ paciente.endereco or '' }}" />
+    </div>
+    <div class="form-group form-group--small">
+      <label>N°</label>
+      <input type="text" id="numero" name="numero" value="{{ paciente.numero or '' }}" />
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Bairro</label>
+      <input type="text" id="bairro" name="bairro" value="{{ paciente.bairro or '' }}" />
+    </div>
+    <div class="form-group">
+      <label>Cidade</label>
+      <input type="text" id="cidade" name="cidade" value="{{ paciente.cidade or '' }}" />
+    </div>
+  </div>
+  <button type="submit" class="btn btn--primary">Salvar Alterações</button>
+  <a href="{{ url_for('painel.ver_paciente', pid=paciente.id) }}" class="btn btn--secondary">Cancelar</a>
+</form>
+<script src="{{ url_for('static', filename='js/formulario.js') }}"></script>
+{% endblock %}

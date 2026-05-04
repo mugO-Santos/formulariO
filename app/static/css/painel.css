@@ -1,0 +1,99 @@
+/* ── Painel ────────────────────────────────────────────────── */
+.painel-body { background: var(--cinza-bg); }
+
+.painel-header {
+  background: var(--azul);
+  color: var(--branco);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 54px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.painel-header__logo { font-weight: 700; font-size: 1.1rem; letter-spacing: 1px; }
+.painel-header__nav  { display: flex; gap: 6px; align-items: center; }
+
+.nav-btn {
+  background: rgba(255,255,255,0.12);
+  color: var(--branco);
+  border: none;
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.25); text-decoration: none; color: var(--branco); }
+.nav-btn--logout { background: rgba(192,57,43,0.7); }
+.nav-btn--alert  { background: rgba(230,126,34,0.8); }
+
+.painel-main { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+.page-title { font-size: 1.3rem; color: var(--azul); margin-bottom: 20px; }
+
+/* ── Grupos de médico ──────────────────────────────────────── */
+.medico-grupo { margin-bottom: 28px; }
+.medico-grupo__nome { font-size: 1.05rem; color: var(--azul-escuro); border-bottom: 2px solid var(--azul-claro); padding-bottom: 6px; margin-bottom: 10px; }
+.medico-grupo__nome--sem { color: var(--aviso); }
+.crm { font-size: 0.8rem; color: #888; font-weight: 400; }
+
+.paciente-lista { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.paciente-item  { display: flex; align-items: center; gap: 12px; background: var(--branco); border-radius: var(--radius); padding: 10px 14px; box-shadow: var(--sombra); }
+.paciente-item span { flex: 1; font-weight: 500; }
+
+/* ── Perfil ────────────────────────────────────────────────── */
+.perfil { max-width: 780px; }
+.perfil__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.perfil__header h1 { font-size: 1.4rem; color: var(--azul); }
+.perfil__acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.perfil__section { background: var(--branco); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 16px; box-shadow: var(--sombra); }
+.perfil__section h2 { font-size: 0.95rem; color: var(--azul); margin-bottom: 12px; }
+
+.dados { display: grid; grid-template-columns: 170px 1fr; gap: 6px 12px; font-size: 0.9rem; }
+.dados dt { font-weight: 600; color: #555; }
+
+.obs-textarea { width: 100%; min-height: 100px; padding: 10px; border: 1.5px solid var(--cinza-borda); border-radius: var(--radius); font-size: 0.9rem; resize: vertical; margin-bottom: 10px; }
+
+/* ── Logs ──────────────────────────────────────────────────── */
+.log-lista { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.log-item   { display: flex; gap: 10px; font-size: 0.82rem; color: #555; border-bottom: 1px solid var(--cinza-borda); padding: 4px 0; flex-wrap: wrap; }
+.log-data    { color: #999; min-width: 120px; }
+.log-usuario { font-weight: 600; color: var(--azul-escuro); }
+.log-acao    { flex: 1; }
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.modal.hidden { display: none; }
+.modal__box {
+  background: var(--branco);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  min-width: 320px;
+  max-width: 560px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal__box--wide { max-width: 700px; }
+.modal__box h2 { color: var(--azul); font-size: 1.1rem; }
+.modal__close {
+  position: absolute; top: 12px; right: 14px;
+  background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #888;
+}
+.modal__close:hover { color: var(--perigo); }
+
+/* ── Notificações ──────────────────────────────────────────── */
+.notif-item { background: var(--azul-claro); border-radius: var(--radius); padding: 8px 12px; font-size: 0.88rem; }

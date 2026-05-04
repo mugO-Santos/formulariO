@@ -1,0 +1,41 @@
+{% extends "base_painel.html" %}
+{% block title %}Pacientes{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Pacientes</h1>
+
+{% for grupo in grupos %}
+  <section class="medico-grupo">
+    <h2 class="medico-grupo__nome">{{ grupo.medico.nome }} <span class="crm">CRM {{ grupo.medico.crm }}</span></h2>
+    {% if grupo.pacientes %}
+    <ul class="paciente-lista">
+      {% for p in grupo.pacientes %}
+      <li class="paciente-item">
+        <span>{{ p.nome }}</span>
+        <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="empty">Nenhum paciente vinculado.</p>
+    {% endif %}
+  </section>
+{% endfor %}
+
+{% if pacientes_sem_medico %}
+<section class="medico-grupo">
+  <h2 class="medico-grupo__nome medico-grupo__nome--sem">Sem médico vinculado</h2>
+  <ul class="paciente-lista">
+    {% for p in pacientes_sem_medico %}
+    <li class="paciente-item">
+      <span>{{ p.nome }}</span>
+      {% if p.nome_medico_digitado %}
+        <small class="hint">(digitou: "{{ p.nome_medico_digitado }}")</small>
+      {% endif %}
+      <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

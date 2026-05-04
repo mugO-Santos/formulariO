@@ -1,0 +1,36 @@
+{% extends "base_painel.html" %}
+{% block title %}Médicos{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Médicos</h1>
+
+<form method="POST" action="{{ url_for('medicos.novo') }}" class="form-inline">
+  <input type="text" name="nome" placeholder="Nome do médico" required />
+  <input type="text" name="crm" placeholder="CRM" required />
+  <button type="submit" class="btn btn--primary">Adicionar</button>
+</form>
+
+<table class="tabela">
+  <thead>
+    <tr><th>Nome</th><th>CRM</th><th>Pacientes</th><th>Ações</th></tr>
+  </thead>
+  <tbody>
+    {% for m in medicos %}
+    <tr>
+      <td>
+        <form method="POST" action="{{ url_for('medicos.editar', mid=m.id) }}" class="form-inline-edit">
+          <input type="text" name="nome" value="{{ m.nome }}" required />
+          <input type="text" name="crm" value="{{ m.crm }}" required />
+          <button type="submit" class="btn btn--sm">Salvar</button>
+        </form>
+      </td>
+      <td>{{ m.crm }}</td>
+      <td>{{ contagem[m.id] }}</td>
+      <td></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">Nenhum médico cadastrado.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
