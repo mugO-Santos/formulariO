@@ -180,10 +180,11 @@ a:hover { text-decoration: underline; }
 
 .form-footer {
   text-align: center;
-  padding: 14px;
-  font-size: 0.78rem;
-  color: #888;
-  background: transparent;
+  padding: 16px 14px;
+  font-size: 0.82rem;
+  color: #fff;
+  background: var(--azul-escuro);
+  letter-spacing: 0.2px;
 }
 
 /* ── Login ─────────────────────────────────────────────────── */
