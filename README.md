@@ -98,15 +98,15 @@ Sistema para gerenciamento de dados de pacientes, o link do formulário é envia
         2. Solteiro
         3. Divorciado
         4. Viúvo
-    7. Profissão
-    8. E-mail
-    9. Telefone
-    10. CEP (com lupa de pesquisa para preencher os campos de endereço automaticamente)
-    11. Endereço
-    12. N°
-    13. Bairro
-    14. Cidade
-    15. Nome do Médico
+7. Profissão
+8. E-mail
+9. Telefone
+10. CEP (com lupa de pesquisa para preencher os campos de endereço automaticamente)
+11. Endereço
+12. N°
+13. Bairro
+14. Cidade
+15. Nome do Médico
 
 ## Área de Login
 - Background Azul Hospitalar
