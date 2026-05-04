@@ -13,22 +13,32 @@ bp = Blueprint("painel", __name__, url_prefix="/painel")
 @login_required
 def index():
     from app.models import Medico
-    medicos = Medico.query.filter_by(ativo=True).order_by(Medico.nome).all()
+    from sqlalchemy import func
 
-    # Pacientes ativos agrupados por médico
     pacientes_sem_medico = (
         Paciente.query
         .filter(Paciente.excluido_em.is_(None), Paciente.medico_id.is_(None))
-        .order_by(Paciente.nome)
+        .order_by(Paciente.criado_em.desc())
         .all()
     )
+
+    # Médicos que têm ao menos 1 paciente ativo, ordenados pelo paciente mais recente
+    medicos_com_pacientes = (
+        db.session.query(Medico, func.max(Paciente.criado_em).label("ultimo"))
+        .join(Paciente, Paciente.medico_id == Medico.id)
+        .filter(Paciente.excluido_em.is_(None))
+        .group_by(Medico.id)
+        .order_by(func.max(Paciente.criado_em).desc())
+        .all()
+    )
+
     grupos = []
-    for m in medicos:
+    for m, _ in medicos_com_pacientes:
         pacs = (
             Paciente.query
             .filter_by(medico_id=m.id)
             .filter(Paciente.excluido_em.is_(None))
-            .order_by(Paciente.nome)
+            .order_by(Paciente.criado_em.desc())
             .all()
         )
         grupos.append({"medico": m, "pacientes": pacs})
