@@ -78,6 +78,9 @@ a:hover { text-decoration: underline; }
 .form-group--small { flex: 1; min-width: 80px; }
 .form-section { border: 1.5px solid var(--azul-claro); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; }
 .form-section legend { font-weight: 700; color: var(--azul); padding: 0 8px; font-size: 0.95rem; }
+.obrigatorio { color: #e53935; }
+.radio-group { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 4px; }
+.radio-label { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; cursor: pointer; font-weight: 500; color: var(--azul-escuro); }
 
 .input-icon { display: flex; align-items: center; gap: 6px; }
 .input-icon input { flex: 1; }

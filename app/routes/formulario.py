@@ -35,6 +35,7 @@ def index():
             cidade=request.form.get("cidade", "").strip() or None,
             medico_id=medico.id if medico else None,
             nome_medico_digitado=nome_medico or None,
+            forma_pagamento=request.form.get("forma_pagamento", "").strip() or None,
             aceite_lgpd=True,
             aceite_lgpd_em=datetime.now(timezone.utc),
         )

@@ -75,6 +75,9 @@ class Paciente(db.Model):
     bairro = db.Column(db.String(80), nullable=True)
     cidade = db.Column(db.String(80), nullable=True)
 
+    # Pagamento
+    forma_pagamento = db.Column(db.String(30), nullable=True)
+
     # Vínculo médico
     medico_id = db.Column(db.Integer, db.ForeignKey("medicos.id"), nullable=True)
     nome_medico_digitado = db.Column(db.String(120), nullable=True)  # texto original do formulário
