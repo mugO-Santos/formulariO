@@ -147,10 +147,18 @@ def recuperar_paciente(pid):
 @bp.route("/paciente/<int:pid>/pdf")
 @login_required
 def exportar_pdf(pid):
-    from weasyprint import HTML
     paciente = Paciente.query.get_or_404(pid)
     if paciente.excluido:
         abort(404)
+    try:
+        from weasyprint import HTML
+    except (ImportError, OSError):
+        flash(
+            "Não foi possível gerar PDF neste ambiente. Instale as bibliotecas nativas do WeasyPrint.",
+            "danger",
+        )
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
     db.session.add(Log(
         usuario_id=current_user.id,
         paciente_id=pid,
@@ -158,7 +166,15 @@ def exportar_pdf(pid):
     ))
     db.session.commit()
     html = render_template("painel/pdf_perfil.html", paciente=paciente)
-    pdf = HTML(string=html).write_pdf()
+    try:
+        pdf = HTML(string=html).write_pdf()
+    except OSError:
+        flash(
+            "Falha ao gerar PDF: dependências nativas do WeasyPrint não encontradas.",
+            "danger",
+        )
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
     response = make_response(pdf)
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = (
