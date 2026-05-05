@@ -8,6 +8,9 @@ from app.fuzzy import buscar_medico
 bp = Blueprint("formulario", __name__)
 
 
+ESTADOS_CIVIS_VALIDOS = {"Casado", "Solteiro", "Divorciado", "Viúvo"}
+
+
 @bp.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
@@ -16,19 +19,53 @@ def index():
             flash("Você precisa aceitar o Termo de Uso de Dados para continuar.", "danger")
             return render_template("formulario.html", dados=request.form)
 
+        # Validação dos campos obrigatórios
+        erros = []
+        nome = request.form.get("nome", "").strip()
+        nome_mae = request.form.get("nome_mae", "").strip()
+        cpf = request.form.get("cpf", "").strip()
+        telefone = request.form.get("telefone", "").strip()
+        estado_civil = request.form.get("estado_civil", "").strip()
+        data_nascimento_raw = request.form.get("data_nascimento", "").strip()
+
+        if not nome:
+            erros.append("Nome do paciente é obrigatório.")
+        if not nome_mae:
+            erros.append("Nome da mãe é obrigatório.")
+        if not cpf:
+            erros.append("CPF é obrigatório.")
+        if not telefone:
+            erros.append("Telefone é obrigatório.")
+        if not estado_civil or estado_civil not in ESTADOS_CIVIS_VALIDOS:
+            erros.append("Estado civil inválido.")
+        if not data_nascimento_raw:
+            erros.append("Data de nascimento é obrigatória.")
+            data_nascimento = None
+        else:
+            try:
+                data_nascimento = datetime.strptime(data_nascimento_raw, "%Y-%m-%d").date()
+            except ValueError:
+                erros.append("Data de nascimento inválida.")
+                data_nascimento = None
+
+        if erros:
+            for erro in erros:
+                flash(erro, "danger")
+            return render_template("formulario.html", dados=request.form)
+
         nome_medico = request.form.get("nome_medico", "").strip()
         medico = buscar_medico(nome_medico) if nome_medico else None
 
         paciente = Paciente(
-            nome=request.form["nome"].strip(),
-            nome_mae=request.form["nome_mae"].strip(),
-            cpf=request.form["cpf"].strip(),
+            nome=nome,
+            nome_mae=nome_mae,
+            cpf=cpf,
             rg=request.form.get("rg", "").strip() or None,
-            data_nascimento=datetime.strptime(request.form["data_nascimento"], "%Y-%m-%d").date(),
-            estado_civil=request.form["estado_civil"],
+            data_nascimento=data_nascimento,
+            estado_civil=estado_civil,
             profissao=request.form.get("profissao", "").strip() or None,
             email=request.form.get("email", "").strip() or None,
-            telefone=request.form["telefone"].strip(),
+            telefone=telefone,
             cep=request.form.get("cep", "").strip() or None,
             endereco=request.form.get("endereco", "").strip() or None,
             numero=request.form.get("numero", "").strip() or None,
