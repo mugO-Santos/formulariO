@@ -3,28 +3,31 @@
 
 {% block content %}
 <h1 class="page-title">Pacientes</h1>
+<p class="page-subtitle">Perfis que já passaram pela triagem e foram concluídos.</p>
+
+{% if not grupos and not pacientes_sem_medico %}
+  <p class="empty">Nenhum paciente concluído ainda.</p>
+{% endif %}
 
 {% for grupo in grupos %}
   <section class="medico-grupo">
     <h2 class="medico-grupo__nome">{{ grupo.medico.nome }} <span class="crm">CRM {{ grupo.medico.crm }}</span></h2>
-    {% if grupo.pacientes %}
     <ul class="paciente-lista">
       {% for p in grupo.pacientes %}
       <li class="paciente-item">
         <span>{{ p.nome }}</span>
         <div class="paciente-item__actions">
           <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
-          <form method="POST" action="{{ url_for('painel.concluir_paciente', pid=p.id) }}" style="display:inline">
-            <button type="submit" class="btn btn--sm btn--success"
-                    onclick="return confirm('Concluir o perfil de {{ p.nome }}?')">Concluído</button>
+          <form method="POST" action="{{ url_for('painel.desconcluir_paciente', pid=p.id) }}" style="display:inline">
+            <button type="submit" class="btn btn--sm btn--outline"
+                    onclick="return confirm('Mover {{ p.nome }} de volta para triagem?')">
+              Reabrir
+            </button>
           </form>
         </div>
       </li>
       {% endfor %}
     </ul>
-    {% else %}
-      <p class="empty">Nenhum paciente vinculado.</p>
-    {% endif %}
   </section>
 {% endfor %}
 
@@ -40,9 +43,11 @@
       {% endif %}
       <div class="paciente-item__actions">
         <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
-        <form method="POST" action="{{ url_for('painel.concluir_paciente', pid=p.id) }}" style="display:inline">
-          <button type="submit" class="btn btn--sm btn--success"
-                  onclick="return confirm('Concluir o perfil de {{ p.nome }}?')">Concluído</button>
+        <form method="POST" action="{{ url_for('painel.desconcluir_paciente', pid=p.id) }}" style="display:inline">
+          <button type="submit" class="btn btn--sm btn--outline"
+                  onclick="return confirm('Mover {{ p.nome }} de volta para triagem?')">
+            Reabrir
+          </button>
         </form>
       </div>
     </li>

@@ -17,7 +17,7 @@ def index():
 
     pacientes_sem_medico = (
         Paciente.query
-        .filter(Paciente.excluido_em.is_(None), Paciente.medico_id.is_(None))
+        .filter(Paciente.excluido_em.is_(None), Paciente.medico_id.is_(None), Paciente.concluido_em.is_(None))
         .order_by(Paciente.criado_em.desc())
         .all()
     )
@@ -26,7 +26,7 @@ def index():
     medicos_com_pacientes = (
         db.session.query(Medico, func.max(Paciente.criado_em).label("ultimo"))
         .join(Paciente, Paciente.medico_id == Medico.id)
-        .filter(Paciente.excluido_em.is_(None))
+        .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.is_(None))
         .group_by(Medico.id)
         .order_by(func.max(Paciente.criado_em).desc())
         .all()
@@ -37,7 +37,7 @@ def index():
         pacs = (
             Paciente.query
             .filter_by(medico_id=m.id)
-            .filter(Paciente.excluido_em.is_(None))
+            .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.is_(None))
             .order_by(Paciente.criado_em.desc())
             .all()
         )
@@ -122,6 +122,78 @@ def excluir_paciente(pid):
     db.session.commit()
     flash("Perfil excluído. Pode ser recuperado em até 60 dias.", "warning")
     return redirect(url_for("painel.index"))
+
+
+@bp.route("/paciente/<int:pid>/concluir", methods=["POST"])
+@login_required
+def concluir_paciente(pid):
+    paciente = Paciente.query.get_or_404(pid)
+    if paciente.excluido:
+        abort(404)
+    paciente.concluido_em = datetime.now(timezone.utc)
+    db.session.add(Log(
+        usuario_id=current_user.id,
+        paciente_id=pid,
+        acao="Marcou perfil como concluído",
+    ))
+    db.session.commit()
+    flash(f"Perfil de {paciente.nome} concluído e movido para a aba Pacientes.", "success")
+    return redirect(url_for("painel.index"))
+
+
+@bp.route("/paciente/<int:pid>/desconcluir", methods=["POST"])
+@login_required
+def desconcluir_paciente(pid):
+    paciente = Paciente.query.get_or_404(pid)
+    paciente.concluido_em = None
+    db.session.add(Log(
+        usuario_id=current_user.id,
+        paciente_id=pid,
+        acao="Reabriu perfil concluído para triagem",
+    ))
+    db.session.commit()
+    flash(f"Perfil de {paciente.nome} movido de volta para triagem.", "info")
+    return redirect(url_for("painel.pacientes_concluidos"))
+
+
+@bp.route("/pacientes")
+@login_required
+def pacientes_concluidos():
+    from app.models import Medico
+    from sqlalchemy import func
+
+    pacientes_sem_medico = (
+        Paciente.query
+        .filter(Paciente.excluido_em.is_(None), Paciente.medico_id.is_(None), Paciente.concluido_em.isnot(None))
+        .order_by(Paciente.concluido_em.desc())
+        .all()
+    )
+
+    medicos_com_pacientes = (
+        db.session.query(Medico, func.max(Paciente.concluido_em).label("ultimo"))
+        .join(Paciente, Paciente.medico_id == Medico.id)
+        .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.isnot(None))
+        .group_by(Medico.id)
+        .order_by(func.max(Paciente.concluido_em).desc())
+        .all()
+    )
+
+    grupos = []
+    for m, _ in medicos_com_pacientes:
+        pacs = (
+            Paciente.query
+            .filter_by(medico_id=m.id)
+            .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.isnot(None))
+            .order_by(Paciente.concluido_em.desc())
+            .all()
+        )
+        grupos.append({"medico": m, "pacientes": pacs})
+
+    return render_template(
+        "painel/pacientes.html",
+        grupos=grupos,
+        pacientes_sem_medico=pacientes_sem_medico,
+    )
 
 
 @bp.route("/excluidos")

@@ -52,6 +52,8 @@ a:hover { text-decoration: underline; }
 .btn--secondary { background: var(--azul-claro); color: var(--azul-escuro); }
 .btn--danger    { background: var(--perigo); color: var(--branco); }
 .btn--success   { background: var(--sucesso); color: var(--branco); }
+.btn--outline   { background: transparent; color: var(--azul); border: 1.5px solid var(--azul); }
+.btn--outline:hover { background: var(--azul-claro); filter: none; }
 .btn--full      { width: 100%; justify-content: center; }
 .btn--sm        { padding: 5px 12px; font-size: 0.8rem; }
 

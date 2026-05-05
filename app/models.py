@@ -92,6 +92,7 @@ class Paciente(db.Model):
     # Controle
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     excluido_em = db.Column(db.DateTime, nullable=True)  # soft delete
+    concluido_em = db.Column(db.DateTime, nullable=True)  # marcado como concluído
 
     medico = db.relationship("Medico", back_populates="pacientes")
     logs = db.relationship("Log", back_populates="paciente")
@@ -99,6 +100,10 @@ class Paciente(db.Model):
     @property
     def excluido(self):
         return self.excluido_em is not None
+
+    @property
+    def concluido(self):
+        return self.concluido_em is not None
 
     def __repr__(self):
         return f"<Paciente {self.nome}>"

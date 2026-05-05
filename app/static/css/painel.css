@@ -45,6 +45,8 @@
 .paciente-lista { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .paciente-item  { display: flex; align-items: center; gap: 12px; background: var(--branco); border-radius: var(--radius); padding: 10px 14px; box-shadow: var(--sombra); }
 .paciente-item span { flex: 1; font-weight: 500; }
+.paciente-item__actions { display: flex; gap: 6px; align-items: center; }
+.page-subtitle { color: #666; font-size: 0.9rem; margin-top: -14px; margin-bottom: 20px; }
 
 /* ── Perfil ────────────────────────────────────────────────── */
 .perfil { max-width: 780px; }
