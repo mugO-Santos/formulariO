@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import uuid
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
@@ -8,50 +9,24 @@ from app.fuzzy import buscar_medico
 bp = Blueprint("formulario", __name__)
 
 
-ESTADOS_CIVIS_VALIDOS = {"Casado", "Solteiro", "Divorciado", "Viúvo"}
-
-
 @bp.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        # Validação do aceite LGPD
-        if not request.form.get("aceite_lgpd"):
-            flash("Você precisa aceitar o Termo de Uso de Dados para continuar.", "danger")
-            return render_template("formulario.html", dados=request.form)
-
-        # Validação dos campos obrigatórios
-        erros = []
-        nome = request.form.get("nome", "").strip()
-        nome_mae = request.form.get("nome_mae", "").strip()
+        nome = request.form.get("nome", "").strip() or "Não informado"
+        nome_mae = request.form.get("nome_mae", "").strip() or "Não informado"
         cpf = request.form.get("cpf", "").strip()
-        telefone = request.form.get("telefone", "").strip()
-        estado_civil = request.form.get("estado_civil", "").strip()
-        data_nascimento_raw = request.form.get("data_nascimento", "").strip()
-
-        if not nome:
-            erros.append("Nome do paciente é obrigatório.")
-        if not nome_mae:
-            erros.append("Nome da mãe é obrigatório.")
         if not cpf:
-            erros.append("CPF é obrigatório.")
-        if not telefone:
-            erros.append("Telefone é obrigatório.")
-        if not estado_civil or estado_civil not in ESTADOS_CIVIS_VALIDOS:
-            erros.append("Estado civil inválido.")
-        if not data_nascimento_raw:
-            erros.append("Data de nascimento é obrigatória.")
-            data_nascimento = None
-        else:
+            cpf = f"P{uuid.uuid4().hex[:13]}"
+        telefone = request.form.get("telefone", "").strip() or "Não informado"
+        estado_civil = request.form.get("estado_civil", "").strip() or "Não informado"
+        data_nascimento_raw = request.form.get("data_nascimento", "").strip()
+        if data_nascimento_raw:
             try:
                 data_nascimento = datetime.strptime(data_nascimento_raw, "%Y-%m-%d").date()
             except ValueError:
-                erros.append("Data de nascimento inválida.")
-                data_nascimento = None
-
-        if erros:
-            for erro in erros:
-                flash(erro, "danger")
-            return render_template("formulario.html", dados=request.form)
+                data_nascimento = date(1900, 1, 1)
+        else:
+            data_nascimento = date(1900, 1, 1)
 
         nome_medico = request.form.get("nome_medico", "").strip()
         medico = buscar_medico(nome_medico) if nome_medico else None
@@ -74,15 +49,15 @@ def index():
             medico_id=medico.id if medico else None,
             nome_medico_digitado=nome_medico or None,
             forma_pagamento=request.form.get("forma_pagamento", "").strip() or None,
-            aceite_lgpd=True,
-            aceite_lgpd_em=datetime.now(timezone.utc),
+            aceite_lgpd=bool(request.form.get("aceite_lgpd")),
+            aceite_lgpd_em=datetime.now(timezone.utc) if request.form.get("aceite_lgpd") else None,
         )
         db.session.add(paciente)
         try:
             db.session.flush()  # gera o id
         except IntegrityError:
             db.session.rollback()
-            flash("Este CPF já está cadastrado no sistema.", "danger")
+            flash("Não foi possível salvar o perfil. Verifique se o CPF já existe e tente novamente.", "danger")
             return render_template("formulario.html", dados=request.form)
 
         db.session.add(Log(

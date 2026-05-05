@@ -121,10 +121,10 @@
       <fieldset class="form-section">
         <legend>Pagamento</legend>
         <div class="form-group">
-          <label>Forma de Pagamento <span class="obrigatorio">*</span></label>
+          <label>Forma de Pagamento</label>
           <div class="radio-group">
             <label class="radio-label">
-              <input type="radio" name="forma_pagamento" value="Pix" required
+              <input type="radio" name="forma_pagamento" value="Pix"
                 {% if dados.get('forma_pagamento') == 'Pix' %}checked{% endif %} /> Pix
             </label>
             <label class="radio-label">
