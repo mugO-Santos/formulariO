@@ -54,7 +54,7 @@
   <h2>Histórico</h2>
   {% for log in paciente.logs | sort(attribute='criado_em', reverse=True) %}
   <div class="log-item">
-    {{ log.criado_em.strftime('%d/%m/%Y %H:%M') }}
+    {{ log.criado_em | horario_sp }}
     {% if log.usuario %} — {{ log.usuario.nome }}{% endif %}
     — {{ log.acao }}
   </div>

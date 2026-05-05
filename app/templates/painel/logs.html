@@ -15,7 +15,7 @@
   <tbody>
     {% for log in logs %}
     <tr>
-      <td>{{ log.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ log.criado_em | horario_sp }}</td>
       <td>{{ log.usuario.nome if log.usuario else '—' }}</td>
       <td>{{ log.paciente.nome if log.paciente else '—' }}</td>
       <td>{{ log.acao }}</td>

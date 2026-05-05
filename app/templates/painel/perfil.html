@@ -73,7 +73,7 @@
       <dt>Aceite</dt>
       <dd>{{ 'Sim' if paciente.aceite_lgpd else 'Não' }}
         {% if paciente.aceite_lgpd_em %}
-          — {{ paciente.aceite_lgpd_em.strftime('%d/%m/%Y %H:%M') }}
+          — {{ paciente.aceite_lgpd_em | horario_sp }}
         {% endif %}
       </dd>
     </dl>
@@ -93,7 +93,7 @@
     <ul class="log-lista">
       {% for log in paciente.logs | sort(attribute='criado_em', reverse=True) %}
       <li class="log-item">
-        <span class="log-data">{{ log.criado_em.strftime('%d/%m/%Y %H:%M') }}</span>
+        <span class="log-data">{{ log.criado_em | horario_sp }}</span>
         {% if log.usuario %}<span class="log-usuario">{{ log.usuario.nome }}</span>{% endif %}
         <span class="log-acao">{{ log.acao }}</span>
       </li>

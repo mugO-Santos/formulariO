@@ -1,10 +1,23 @@
 import os
 import re
 import ssl
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from flask import Flask
 from sqlalchemy import inspect, text
 from .extensions import db, login_manager
 from .models import Usuario
+
+SP = ZoneInfo("America/Sao_Paulo")
+
+
+def _fmt_sp(dt, fmt="%d/%m/%Y %H:%M"):
+    """Converte datetime UTC → horário de São Paulo e formata."""
+    if dt is None:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(SP).strftime(fmt)
 
 
 def create_app():
@@ -39,6 +52,8 @@ def create_app():
     login_manager.login_view = "auth.login"
     login_manager.login_message = "Faça login para acessar esta página."
     login_manager.login_message_category = "warning"
+
+    app.jinja_env.filters["horario_sp"] = _fmt_sp
 
     @login_manager.user_loader
     def load_user(user_id):
