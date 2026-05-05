@@ -2,6 +2,7 @@ import os
 import re
 import ssl
 from flask import Flask
+from sqlalchemy import inspect, text
 from .extensions import db, login_manager
 from .models import Usuario
 
@@ -61,6 +62,7 @@ def create_app():
     # ── Criação do banco e seed do Admin ──────────────────────────
     with app.app_context():
         db.create_all()
+        _ensure_runtime_schema_updates()
         _seed_admin()
 
     return app
@@ -94,3 +96,18 @@ def _seed_admin():
             )
         )
         db.session.commit()
+
+
+def _ensure_runtime_schema_updates():
+    """Aplicar ajustes simples de schema em bancos já existentes."""
+    inspector = inspect(db.engine)
+    table_names = inspector.get_table_names()
+
+    if "pacientes" in table_names:
+        colunas_pacientes = {col["name"] for col in inspector.get_columns("pacientes")}
+        if "concluido_em" not in colunas_pacientes:
+            try:
+                db.session.execute(text("ALTER TABLE pacientes ADD COLUMN concluido_em TIMESTAMP"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
