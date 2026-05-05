@@ -12,6 +12,9 @@
       {% for p in grupo.pacientes %}
       <li class="paciente-item">
         <span>{{ p.nome }}</span>
+        {% if p.observacoes %}
+          <span class="paciente-obs" title="{{ p.observacoes }}">{{ p.observacoes }}</span>
+        {% endif %}
         <div class="paciente-item__actions">
           <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
           <form method="POST" action="{{ url_for('painel.concluir_paciente', pid=p.id) }}" style="display:inline">
@@ -37,6 +40,9 @@
       <span>{{ p.nome }}</span>
       {% if p.nome_medico_digitado %}
         <small class="hint">(digitou: "{{ p.nome_medico_digitado }}")</small>
+      {% endif %}
+      {% if p.observacoes %}
+        <span class="paciente-obs" title="{{ p.observacoes }}">{{ p.observacoes }}</span>
       {% endif %}
       <div class="paciente-item__actions">
         <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
