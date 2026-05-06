@@ -2,13 +2,17 @@ import os
 import re
 import ssl
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import Flask
 from sqlalchemy import inspect, text
 from .extensions import db, login_manager
 from .models import Usuario
 
-SP = ZoneInfo("America/Sao_Paulo")
+try:
+    SP = ZoneInfo("America/Sao_Paulo")
+except ZoneInfoNotFoundError:
+    # Fallback para ambientes Windows sem base de timezones instalada.
+    SP = timezone.utc
 
 
 def _fmt_sp(dt, fmt="%d/%m/%Y %H:%M"):
@@ -22,6 +26,10 @@ def _fmt_sp(dt, fmt="%d/%m/%Y %H:%M"):
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
+
+    @app.get("/favicon.ico")
+    def favicon():
+        return ("", 204)
 
     # ── Configuração ──────────────────────────────────────────────
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -124,5 +132,8 @@ def _ensure_runtime_schema_updates():
             try:
                 db.session.execute(text("ALTER TABLE pacientes ADD COLUMN concluido_em TIMESTAMP"))
                 db.session.commit()
-            except Exception:
+            except Exception as exc:
                 db.session.rollback()
+                raise RuntimeError(
+                    "Falha ao criar coluna 'concluido_em' na tabela 'pacientes'."
+                ) from exc

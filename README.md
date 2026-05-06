@@ -26,8 +26,8 @@ O link do formulário é enviado ao paciente, que preenche os dados obrigatório
 
 ## Funcionalidades
 
-- **Formulário público** com lookup de CEP automático, seleção de forma de pagamento e modal de aceite LGPD obrigatório
-- **Perfil do Paciente** gerado automaticamente com dados pessoais, forma de pagamento, médico vinculado e campo de observações
+- **Formulário público** com lookup de CEP automático e modal de aceite LGPD obrigatório
+- **Perfil do Paciente** gerado automaticamente com dados pessoais, médico vinculado e campo de observações
 - **Triagem / Pacientes** — perfis recém-cadastrados ficam na tela inicial (Início) para análise; ao clicar em **Concluído** o perfil é movido para a aba **Pacientes**, separando quem já foi atendido de quem ainda está pendente. A ação pode ser desfeita via botão "Reabrir"
 - **Exportação PDF** com todos os dados do perfil
 - **Busca fuzzy de médicos** — reconhece variações de nome (acentos, maiúsculas, abreviações)

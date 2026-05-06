@@ -48,7 +48,6 @@ def index():
             cidade=request.form.get("cidade", "").strip() or None,
             medico_id=medico.id if medico else None,
             nome_medico_digitado=nome_medico or None,
-            forma_pagamento=request.form.get("forma_pagamento", "").strip() or None,
             aceite_lgpd=bool(request.form.get("aceite_lgpd")),
             aceite_lgpd_em=datetime.now(timezone.utc) if request.form.get("aceite_lgpd") else None,
         )
