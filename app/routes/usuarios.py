@@ -78,6 +78,7 @@ def novo():
 def nova_clinica():
     nome = request.form.get("nome", "").strip()
     medico_id_raw = request.form.get("medico_responsavel_id", "").strip()
+    eh_hospital = bool(request.form.get("eh_hospital"))
 
     if not nome:
         flash("Nome da clínica é obrigatório.", "danger")
@@ -87,7 +88,7 @@ def nova_clinica():
         flash("Já existe uma clínica com esse nome.", "danger")
         return redirect(url_for("usuarios.index"))
 
-    clinica = Clinica(nome=nome)
+    clinica = Clinica(nome=nome, eh_hospital=eh_hospital)
     db.session.add(clinica)
     db.session.flush()
 
@@ -110,6 +111,7 @@ def editar_clinica(cid):
     clinica = Clinica.query.get_or_404(cid)
     nome = request.form.get("nome", "").strip()
     medico_id_raw = request.form.get("medico_responsavel_id", "").strip()
+    eh_hospital = bool(request.form.get("eh_hospital"))
 
     if not nome:
         flash("Nome da clínica é obrigatório.", "danger")
@@ -121,6 +123,7 @@ def editar_clinica(cid):
         return redirect(url_for("usuarios.index"))
 
     clinica.nome = nome
+    clinica.eh_hospital = eh_hospital
     clinica.medico_responsavel_id = None
     if medico_id_raw:
         medico = Medico.query.get_or_404(int(medico_id_raw))

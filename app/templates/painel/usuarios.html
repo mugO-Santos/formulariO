@@ -14,6 +14,10 @@
       <option value="{{ m.id }}">{{ m.nome }}{% if m.clinica %} - {{ m.clinica.nome }}{% endif %}</option>
     {% endfor %}
   </select>
+  <label style="display:flex;align-items:center;gap:.4rem;">
+    <input type="checkbox" name="eh_hospital" value="1" />
+    É hospital
+  </label>
   <button type="submit" class="btn btn--secondary">Criar Clínica</button>
 </form>
 {% endif %}
@@ -101,6 +105,10 @@
               <option value="{{ m.id }}" {% if clinica.medico_responsavel_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
             {% endfor %}
           </select>
+          <label style="display:flex;align-items:center;gap:.4rem;">
+            <input type="checkbox" name="eh_hospital" value="1" {% if clinica.eh_hospital %}checked{% endif %} />
+            É hospital
+          </label>
       </td>
       <td>{{ clinica.usuarios | selectattr('ativo', 'equalto', true) | list | length }}</td>
       <td>

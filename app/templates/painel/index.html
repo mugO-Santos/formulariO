@@ -17,10 +17,12 @@
         {% endif %}
         <div class="paciente-item__actions">
           <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
+          {% if current_user.acesso_global or p.clinica_origem_id == current_user.clinica_id %}
           <form method="POST" action="{{ url_for('painel.concluir_paciente', pid=p.id) }}" style="display:inline">
             <button type="submit" class="btn btn--sm btn--success"
                     onclick="return confirm('Concluir o perfil de {{ p.nome }}?')">Concluído</button>
           </form>
+          {% endif %}
         </div>
       </li>
       {% endfor %}
@@ -46,10 +48,12 @@
       {% endif %}
       <div class="paciente-item__actions">
         <a href="{{ url_for('painel.ver_paciente', pid=p.id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
+        {% if current_user.acesso_global or p.clinica_origem_id == current_user.clinica_id %}
         <form method="POST" action="{{ url_for('painel.concluir_paciente', pid=p.id) }}" style="display:inline">
           <button type="submit" class="btn btn--sm btn--success"
                   onclick="return confirm('Concluir o perfil de {{ p.nome }}?')">Concluído</button>
         </form>
+        {% endif %}
       </div>
     </li>
     {% endfor %}

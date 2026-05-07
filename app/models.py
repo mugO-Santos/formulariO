@@ -9,12 +9,14 @@ class Clinica(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(120), unique=True, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
+    eh_hospital = db.Column(db.Boolean, default=False, nullable=False)
     medico_responsavel_id = db.Column(db.Integer, db.ForeignKey("medicos.id"), nullable=True)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuarios = db.relationship("Usuario", back_populates="clinica")
     medicos = db.relationship("Medico", back_populates="clinica", foreign_keys="Medico.clinica_id")
     pacientes = db.relationship("Paciente", back_populates="clinica")
+    encaminhamentos_recebidos = db.relationship("Encaminhamento", back_populates="clinica_destino")
     medico_responsavel = db.relationship("Medico", foreign_keys=[medico_responsavel_id], post_update=True)
 
     def __repr__(self):
@@ -49,6 +51,7 @@ class Usuario(UserMixin, db.Model):
     clinica = db.relationship("Clinica", back_populates="usuarios")
     logs = db.relationship("Log", back_populates="usuario")
     notificacoes = db.relationship("Notificacao", back_populates="usuario")
+    encaminhamentos_enviados = db.relationship("Encaminhamento", back_populates="enviado_por")
 
     @property
     def nivel(self):
@@ -124,6 +127,7 @@ class Paciente(db.Model):
     medico = db.relationship("Medico", back_populates="pacientes")
     clinica = db.relationship("Clinica", back_populates="pacientes")
     logs = db.relationship("Log", back_populates="paciente")
+    encaminhamentos = db.relationship("Encaminhamento", back_populates="paciente", cascade="all, delete-orphan")
 
     @property
     def excluido(self):
@@ -132,6 +136,14 @@ class Paciente(db.Model):
     @property
     def concluido(self):
         return self.concluido_em is not None
+
+    @property
+    def clinica_origem_id(self):
+        if self.clinica_id is not None:
+            return self.clinica_id
+        if self.medico is not None:
+            return self.medico.clinica_id
+        return None
 
     def __repr__(self):
         return f"<Paciente {self.nome}>"
@@ -151,6 +163,35 @@ class Log(db.Model):
 
     def __repr__(self):
         return f"<Log {self.acao} em {self.criado_em}>"
+
+
+class Encaminhamento(db.Model):
+    __tablename__ = "encaminhamentos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    paciente_id = db.Column(db.Integer, db.ForeignKey("pacientes.id"), nullable=False)
+    clinica_destino_id = db.Column(db.Integer, db.ForeignKey("clinicas.id"), nullable=False)
+    enviado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+    status = db.Column(db.String(30), default="enviado", nullable=False)
+    observacao = db.Column(db.Text, nullable=True)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    atualizado_em = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    paciente = db.relationship("Paciente", back_populates="encaminhamentos")
+    clinica_destino = db.relationship("Clinica", back_populates="encaminhamentos_recebidos")
+    enviado_por = db.relationship("Usuario", back_populates="encaminhamentos_enviados")
+
+    __table_args__ = (
+        db.UniqueConstraint("paciente_id", "clinica_destino_id", name="uq_encaminhamento_paciente_destino"),
+    )
+
+    def __repr__(self):
+        return f"<Encaminhamento paciente={self.paciente_id} destino={self.clinica_destino_id}>"
 
 
 class Notificacao(db.Model):

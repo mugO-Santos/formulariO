@@ -7,7 +7,7 @@
     <h1>{{ paciente.nome }}</h1>
     <div class="perfil__acoes">
       <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" target="_blank" class="btn btn--secondary">Imprimir PDF</a>
-      {% if current_user.nivel <= 1 %}
+      {% if current_user.nivel <= 1 and pode_gerenciar %}
       <a href="{{ url_for('painel.editar_paciente', pid=paciente.id) }}" class="btn btn--primary">Editar</a>
       <form method="POST" action="{{ url_for('painel.excluir_paciente', pid=paciente.id) }}"
             onsubmit="return confirm('Confirma exclusão? O perfil ficará em modo excluído por 60 dias.')">
@@ -78,11 +78,43 @@
   </section>
   {% endif %}
 
+  {% if pode_gerenciar and hospitais_destino %}
+  <section class="perfil__section">
+    <h2>Encaminhar para Hospital</h2>
+    <form method="POST" action="{{ url_for('painel.encaminhar_hospital', pid=paciente.id) }}" class="form-inline">
+      <select name="clinica_destino_id" required>
+        <option value="">Selecione o hospital</option>
+        {% for hospital in hospitais_destino %}
+        <option value="{{ hospital.id }}">{{ hospital.nome }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="observacao" placeholder="Observação (opcional)" />
+      <button type="submit" class="btn btn--secondary">Enviar - Hospital</button>
+    </form>
+    {% if paciente.encaminhamentos %}
+    <ul class="log-lista" style="margin-top:1rem;">
+      {% for enc in paciente.encaminhamentos | sort(attribute='atualizado_em', reverse=True) %}
+      <li class="log-item">
+        <span class="log-data">{{ enc.atualizado_em | horario_sp }}</span>
+        <span class="log-usuario">{{ enc.clinica_destino.nome }}</span>
+        <span class="log-acao">Status: {{ enc.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section class="perfil__section">
     <h2>Observações</h2>
+    {% if not pode_gerenciar %}
+      <p class="hint">Este perfil foi encaminhado para sua clínica em modo consulta. Edição de observações disponível apenas para a clínica de origem.</p>
+    {% endif %}
     <form method="POST" action="{{ url_for('painel.editar_observacoes', pid=paciente.id) }}">
-      <textarea name="observacoes" rows="5" class="obs-textarea">{{ paciente.observacoes or '' }}</textarea>
+      <textarea name="observacoes" rows="5" class="obs-textarea" {% if not pode_gerenciar %}disabled{% endif %}>{{ paciente.observacoes or '' }}</textarea>
+      {% if pode_gerenciar %}
       <button type="submit" class="btn btn--primary">Salvar Observações</button>
+      {% endif %}
     </form>
   </section>
 

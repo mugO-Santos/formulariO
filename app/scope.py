@@ -1,7 +1,7 @@
 from sqlalchemy import and_, or_
 
 from .extensions import db
-from .models import Log, Medico, Paciente, Usuario
+from .models import Encaminhamento, Log, Medico, Paciente, Usuario
 
 
 def clinica_escopo_id(usuario):
@@ -12,11 +12,27 @@ def clinica_escopo_id(usuario):
 
 def filtro_paciente_clinica(clinica_id):
     return or_(
+        filtro_paciente_origem_clinica(clinica_id),
+        filtro_paciente_encaminhado_para_clinica(clinica_id),
+    )
+
+
+def filtro_paciente_origem_clinica(clinica_id):
+    return or_(
         Paciente.clinica_id == clinica_id,
         and_(
             Paciente.clinica_id.is_(None),
             Paciente.medico.has(Medico.clinica_id == clinica_id),
         ),
+    )
+
+
+def filtro_paciente_encaminhado_para_clinica(clinica_id):
+    return Paciente.encaminhamentos.any(
+        and_(
+            Encaminhamento.clinica_destino_id == clinica_id,
+            Encaminhamento.status.in_(["enviado", "recebido", "em_andamento"]),
+        )
     )
 
 
@@ -71,8 +87,30 @@ def pode_acessar_paciente(usuario, paciente):
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return True
-    paciente_clinica_id = paciente.clinica_id or (paciente.medico.clinica_id if paciente.medico else None)
+    return (
+        paciente_da_clinica_origem(clinica_id, paciente)
+        or paciente_foi_encaminhado_para(clinica_id, paciente)
+    )
+
+
+def paciente_da_clinica_origem(clinica_id, paciente):
+    paciente_clinica_id = paciente.clinica_origem_id
     return paciente_clinica_id == clinica_id
+
+
+def paciente_foi_encaminhado_para(clinica_id, paciente):
+    return any(
+        enc.clinica_destino_id == clinica_id
+        and enc.status in ("enviado", "recebido", "em_andamento")
+        for enc in paciente.encaminhamentos
+    )
+
+
+def pode_gerenciar_paciente(usuario, paciente):
+    clinica_id = clinica_escopo_id(usuario)
+    if clinica_id is None:
+        return True
+    return paciente_da_clinica_origem(clinica_id, paciente)
 
 
 def sincronizar_clinica_pacientes_do_medico(medico):

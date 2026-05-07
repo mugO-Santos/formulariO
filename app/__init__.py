@@ -184,6 +184,7 @@ def _ensure_runtime_schema_updates():
     _ensure_column(inspector, "medicos", "clinica_id", "INTEGER")
     _ensure_column(inspector, "pacientes", "clinica_id", "INTEGER")
     _ensure_column(inspector, "clinicas", "medico_responsavel_id", "INTEGER")
+    _ensure_column(inspector, "clinicas", "eh_hospital", "BOOLEAN DEFAULT FALSE")
 
     if "pacientes" in table_names:
         colunas_pacientes = {col["name"] for col in inspector.get_columns("pacientes")}

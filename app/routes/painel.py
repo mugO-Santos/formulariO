@@ -3,9 +3,9 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from app.extensions import db
-from app.models import Paciente, Log
+from app.models import Clinica, Encaminhamento, Paciente, Log
 from app.decorators import nivel_minimo
-from app.scope import clinica_escopo_id, filtro_paciente_clinica, scoped_pacientes
+from app.scope import pode_gerenciar_paciente, scoped_pacientes
 
 bp = Blueprint("painel", __name__, url_prefix="/painel")
 
@@ -18,11 +18,18 @@ def _get_paciente_or_404(pid):
     return _paciente_query().filter(Paciente.id == pid).first_or_404()
 
 
+def _requer_gerencia_paciente(paciente):
+    if pode_gerenciar_paciente(current_user, paciente):
+        return True
+    flash("Este perfil foi compartilhado com sua clínica para consulta. Edições ficam com a clínica de origem.", "warning")
+    return False
+
+
 @bp.route("/")
 @login_required
 def index():
     from app.models import Medico
-    from sqlalchemy import and_, func, or_
+    from sqlalchemy import func, select
 
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
@@ -35,22 +42,13 @@ def index():
         .all()
     )
 
+    base_ids = select(base_pacientes.with_entities(Paciente.id).subquery().c.id)
+
     # Médicos que têm ao menos 1 paciente ativo, ordenados pelo paciente mais recente
     medicos_com_pacientes = db.session.query(Medico, func.max(Paciente.criado_em).label("ultimo")).join(
         Paciente, Paciente.medico_id == Medico.id
     )
-    medicos_com_pacientes = medicos_com_pacientes.filter(
-        Paciente.excluido_em.is_(None),
-        Paciente.concluido_em.is_(None),
-    )
-    clinica_id = clinica_escopo_id(current_user)
-    if clinica_id is not None:
-        medicos_com_pacientes = medicos_com_pacientes.filter(
-            or_(
-                Paciente.clinica_id == clinica_id,
-                and_(Paciente.clinica_id.is_(None), Medico.clinica_id == clinica_id),
-            )
-        )
+    medicos_com_pacientes = medicos_com_pacientes.filter(Paciente.id.in_(base_ids))
     medicos_com_pacientes = medicos_com_pacientes.group_by(Medico.id).order_by(
         func.max(Paciente.criado_em).desc()
     ).all()
@@ -81,7 +79,79 @@ def ver_paciente(pid):
         abort(404)
     db.session.add(Log(usuario_id=current_user.id, paciente_id=pid, acao="Visualizou perfil"))
     db.session.commit()
-    return render_template("painel/perfil.html", paciente=paciente)
+
+    pode_gerenciar = _requer_gerencia_paciente(paciente)
+    hospitais_destino = []
+    if pode_gerenciar:
+        hospitais_destino = (
+            Clinica.query
+            .filter(Clinica.ativo.is_(True), Clinica.eh_hospital.is_(True), Clinica.id != paciente.clinica_origem_id)
+            .order_by(Clinica.nome)
+            .all()
+        )
+
+    return render_template(
+        "painel/perfil.html",
+        paciente=paciente,
+        pode_gerenciar=pode_gerenciar,
+        hospitais_destino=hospitais_destino,
+    )
+
+
+@bp.route("/paciente/<int:pid>/encaminhar", methods=["POST"])
+@login_required
+def encaminhar_hospital(pid):
+    paciente = _get_paciente_or_404(pid)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
+    clinica_destino_id = request.form.get("clinica_destino_id", "").strip()
+    observacao = request.form.get("observacao", "").strip() or None
+    if not clinica_destino_id:
+        flash("Selecione o hospital de destino.", "danger")
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
+    try:
+        destino_id = int(clinica_destino_id)
+    except ValueError:
+        flash("Destino inválido. Selecione um hospital ativo.", "danger")
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
+    destino = Clinica.query.filter_by(id=destino_id, ativo=True).first()
+    if destino is None or not destino.eh_hospital:
+        flash("Destino inválido. Selecione um hospital ativo.", "danger")
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
+    if destino.id == paciente.clinica_origem_id:
+        flash("Não é possível encaminhar para a própria clínica de origem.", "danger")
+        return redirect(url_for("painel.ver_paciente", pid=pid))
+
+    encaminhamento = Encaminhamento.query.filter_by(
+        paciente_id=pid,
+        clinica_destino_id=destino.id,
+    ).first()
+    if encaminhamento:
+        encaminhamento.status = "enviado"
+        encaminhamento.observacao = observacao
+        encaminhamento.enviado_por_usuario_id = current_user.id
+    else:
+        encaminhamento = Encaminhamento(
+            paciente_id=pid,
+            clinica_destino_id=destino.id,
+            enviado_por_usuario_id=current_user.id,
+            status="enviado",
+            observacao=observacao,
+        )
+        db.session.add(encaminhamento)
+
+    db.session.add(Log(
+        usuario_id=current_user.id,
+        paciente_id=pid,
+        acao=f"Encaminhou paciente para hospital: {destino.nome}",
+    ))
+    db.session.commit()
+    flash(f"Perfil encaminhado para {destino.nome}.", "success")
+    return redirect(url_for("painel.ver_paciente", pid=pid))
 
 
 @bp.route("/paciente/<int:pid>/observacoes", methods=["POST"])
@@ -90,6 +160,8 @@ def editar_observacoes(pid):
     paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
     paciente.observacoes = request.form.get("observacoes", "").strip() or None
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -108,6 +180,8 @@ def editar_paciente(pid):
     paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
     if request.method == "POST":
         paciente.nome = request.form["nome"].strip()
         paciente.nome_mae = request.form["nome_mae"].strip()
@@ -136,6 +210,8 @@ def editar_paciente(pid):
 @nivel_minimo(1)
 def excluir_paciente(pid):
     paciente = _get_paciente_or_404(pid)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
     paciente.excluido_em = datetime.now(timezone.utc)
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -153,6 +229,8 @@ def concluir_paciente(pid):
     paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
     paciente.concluido_em = datetime.now(timezone.utc)
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -168,6 +246,8 @@ def concluir_paciente(pid):
 @login_required
 def desconcluir_paciente(pid):
     paciente = _get_paciente_or_404(pid)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
     paciente.concluido_em = None
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -183,7 +263,7 @@ def desconcluir_paciente(pid):
 @login_required
 def pacientes_concluidos():
     from app.models import Medico
-    from sqlalchemy import and_, func, or_
+    from sqlalchemy import func, select
 
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
@@ -196,21 +276,12 @@ def pacientes_concluidos():
         .all()
     )
 
+    base_ids = select(base_pacientes.with_entities(Paciente.id).subquery().c.id)
+
     medicos_com_pacientes = db.session.query(Medico, func.max(Paciente.concluido_em).label("ultimo")).join(
         Paciente, Paciente.medico_id == Medico.id
     )
-    medicos_com_pacientes = medicos_com_pacientes.filter(
-        Paciente.excluido_em.is_(None),
-        Paciente.concluido_em.isnot(None),
-    )
-    clinica_id = clinica_escopo_id(current_user)
-    if clinica_id is not None:
-        medicos_com_pacientes = medicos_com_pacientes.filter(
-            or_(
-                Paciente.clinica_id == clinica_id,
-                and_(Paciente.clinica_id.is_(None), Medico.clinica_id == clinica_id),
-            )
-        )
+    medicos_com_pacientes = medicos_com_pacientes.filter(Paciente.id.in_(base_ids))
     medicos_com_pacientes = medicos_com_pacientes.group_by(Medico.id).order_by(
         func.max(Paciente.concluido_em).desc()
     ).all()
@@ -252,6 +323,8 @@ def excluidos():
 @nivel_minimo(0)
 def recuperar_paciente(pid):
     paciente = _get_paciente_or_404(pid)
+    if not _requer_gerencia_paciente(paciente):
+        return redirect(url_for("painel.ver_paciente", pid=pid))
     paciente.excluido_em = None
     db.session.add(Log(
         usuario_id=current_user.id,
