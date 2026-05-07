@@ -43,6 +43,7 @@ def _montar_paciente(form_data, medico):
         bairro=form_data.get("bairro", "").strip() or None,
         cidade=form_data.get("cidade", "").strip() or None,
         medico_id=medico.id if medico else None,
+        clinica_id=medico.clinica_id if medico else None,
         nome_medico_digitado=nome_medico or None,
         aceite_lgpd=bool(form_data.get("aceite_lgpd")),
         aceite_lgpd_em=datetime.now(timezone.utc) if form_data.get("aceite_lgpd") else None,

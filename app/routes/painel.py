@@ -5,37 +5,60 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import Paciente, Log
 from app.decorators import nivel_minimo
+from app.scope import clinica_escopo_id, filtro_paciente_clinica, scoped_pacientes
 
 bp = Blueprint("painel", __name__, url_prefix="/painel")
+
+
+def _paciente_query():
+    return scoped_pacientes(Paciente.query, current_user)
+
+
+def _get_paciente_or_404(pid):
+    return _paciente_query().filter(Paciente.id == pid).first_or_404()
 
 
 @bp.route("/")
 @login_required
 def index():
     from app.models import Medico
-    from sqlalchemy import func
+    from sqlalchemy import and_, func, or_
 
+    base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
+        Paciente.excluido_em.is_(None),
+        Paciente.concluido_em.is_(None),
+    )
     pacientes_sem_medico = (
-        Paciente.query
-        .filter(Paciente.excluido_em.is_(None), Paciente.medico_id.is_(None), Paciente.concluido_em.is_(None))
+        base_pacientes
+        .filter(Paciente.medico_id.is_(None))
         .order_by(Paciente.criado_em.desc())
         .all()
     )
 
     # Médicos que têm ao menos 1 paciente ativo, ordenados pelo paciente mais recente
-    medicos_com_pacientes = (
-        db.session.query(Medico, func.max(Paciente.criado_em).label("ultimo"))
-        .join(Paciente, Paciente.medico_id == Medico.id)
-        .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.is_(None))
-        .group_by(Medico.id)
-        .order_by(func.max(Paciente.criado_em).desc())
-        .all()
+    medicos_com_pacientes = db.session.query(Medico, func.max(Paciente.criado_em).label("ultimo")).join(
+        Paciente, Paciente.medico_id == Medico.id
     )
+    medicos_com_pacientes = medicos_com_pacientes.filter(
+        Paciente.excluido_em.is_(None),
+        Paciente.concluido_em.is_(None),
+    )
+    clinica_id = clinica_escopo_id(current_user)
+    if clinica_id is not None:
+        medicos_com_pacientes = medicos_com_pacientes.filter(
+            or_(
+                Paciente.clinica_id == clinica_id,
+                and_(Paciente.clinica_id.is_(None), Medico.clinica_id == clinica_id),
+            )
+        )
+    medicos_com_pacientes = medicos_com_pacientes.group_by(Medico.id).order_by(
+        func.max(Paciente.criado_em).desc()
+    ).all()
 
     grupos = []
     for m, _ in medicos_com_pacientes:
         pacs = (
-            Paciente.query
+            scoped_pacientes(Paciente.query, current_user)
             .filter_by(medico_id=m.id)
             .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.is_(None))
             .order_by(Paciente.criado_em.desc())
@@ -53,7 +76,7 @@ def index():
 @bp.route("/paciente/<int:pid>")
 @login_required
 def ver_paciente(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
     db.session.add(Log(usuario_id=current_user.id, paciente_id=pid, acao="Visualizou perfil"))
@@ -64,7 +87,7 @@ def ver_paciente(pid):
 @bp.route("/paciente/<int:pid>/observacoes", methods=["POST"])
 @login_required
 def editar_observacoes(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
     paciente.observacoes = request.form.get("observacoes", "").strip() or None
@@ -82,7 +105,7 @@ def editar_observacoes(pid):
 @login_required
 @nivel_minimo(1)
 def editar_paciente(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
     if request.method == "POST":
@@ -112,7 +135,7 @@ def editar_paciente(pid):
 @login_required
 @nivel_minimo(1)
 def excluir_paciente(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     paciente.excluido_em = datetime.now(timezone.utc)
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -127,7 +150,7 @@ def excluir_paciente(pid):
 @bp.route("/paciente/<int:pid>/concluir", methods=["POST"])
 @login_required
 def concluir_paciente(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
     paciente.concluido_em = datetime.now(timezone.utc)
@@ -144,7 +167,7 @@ def concluir_paciente(pid):
 @bp.route("/paciente/<int:pid>/desconcluir", methods=["POST"])
 @login_required
 def desconcluir_paciente(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     paciente.concluido_em = None
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -160,28 +183,42 @@ def desconcluir_paciente(pid):
 @login_required
 def pacientes_concluidos():
     from app.models import Medico
-    from sqlalchemy import func
+    from sqlalchemy import and_, func, or_
 
+    base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
+        Paciente.excluido_em.is_(None),
+        Paciente.concluido_em.isnot(None),
+    )
     pacientes_sem_medico = (
-        Paciente.query
-        .filter(Paciente.excluido_em.is_(None), Paciente.medico_id.is_(None), Paciente.concluido_em.isnot(None))
+        base_pacientes
+        .filter(Paciente.medico_id.is_(None))
         .order_by(Paciente.concluido_em.desc())
         .all()
     )
 
-    medicos_com_pacientes = (
-        db.session.query(Medico, func.max(Paciente.concluido_em).label("ultimo"))
-        .join(Paciente, Paciente.medico_id == Medico.id)
-        .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.isnot(None))
-        .group_by(Medico.id)
-        .order_by(func.max(Paciente.concluido_em).desc())
-        .all()
+    medicos_com_pacientes = db.session.query(Medico, func.max(Paciente.concluido_em).label("ultimo")).join(
+        Paciente, Paciente.medico_id == Medico.id
     )
+    medicos_com_pacientes = medicos_com_pacientes.filter(
+        Paciente.excluido_em.is_(None),
+        Paciente.concluido_em.isnot(None),
+    )
+    clinica_id = clinica_escopo_id(current_user)
+    if clinica_id is not None:
+        medicos_com_pacientes = medicos_com_pacientes.filter(
+            or_(
+                Paciente.clinica_id == clinica_id,
+                and_(Paciente.clinica_id.is_(None), Medico.clinica_id == clinica_id),
+            )
+        )
+    medicos_com_pacientes = medicos_com_pacientes.group_by(Medico.id).order_by(
+        func.max(Paciente.concluido_em).desc()
+    ).all()
 
     grupos = []
     for m, _ in medicos_com_pacientes:
         pacs = (
-            Paciente.query
+            scoped_pacientes(Paciente.query, current_user)
             .filter_by(medico_id=m.id)
             .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.isnot(None))
             .order_by(Paciente.concluido_em.desc())
@@ -214,7 +251,7 @@ def excluidos():
 @login_required
 @nivel_minimo(0)
 def recuperar_paciente(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     paciente.excluido_em = None
     db.session.add(Log(
         usuario_id=current_user.id,
@@ -229,7 +266,7 @@ def recuperar_paciente(pid):
 @bp.route("/paciente/<int:pid>/pdf")
 @login_required
 def exportar_pdf(pid):
-    paciente = Paciente.query.get_or_404(pid)
+    paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
     try:

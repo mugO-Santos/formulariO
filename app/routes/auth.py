@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
+from sqlalchemy import or_
 from app.extensions import db
 from app.models import Usuario, Log, Notificacao, Cargo
 
@@ -18,6 +19,8 @@ def login():
         senha = request.form.get("senha", "")
 
         usuario = Usuario.query.filter_by(nome=nome, ativo=True).first()
+        if usuario and usuario.clinica and not usuario.clinica.ativo:
+            usuario = None
 
         if usuario and check_password_hash(usuario.senha_hash, senha):
             login_user(usuario)
@@ -42,11 +45,20 @@ def logout():
 @bp.route("/esqueci-senha", methods=["POST"])
 def esqueci_senha():
     nome = request.form.get("nome", "").strip()
-    # Notifica todos os usuários de nível 0 e 1
+    alvo = Usuario.query.filter_by(nome=nome).first()
+
+    # Notifica Admin global e Gestão/Admin da mesma clínica quando houver vínculo.
     admins = (
         Usuario.query
         .join(Cargo)
         .filter(Cargo.nivel <= 1, Usuario.ativo == True)
+    )
+    if alvo and alvo.clinica_id is not None:
+        admins = admins.filter(
+            or_(Usuario.clinica_id == alvo.clinica_id, Usuario.clinica_id.is_(None))
+        )
+    admins = (
+        admins
         .all()
     )
     for a in admins:

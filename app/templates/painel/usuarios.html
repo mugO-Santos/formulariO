@@ -4,6 +4,20 @@
 {% block content %}
 <h1 class="page-title">Usuários</h1>
 
+{% if current_user.nivel == 0 %}
+<h2>Nova Clínica</h2>
+<form method="POST" action="{{ url_for('usuarios.nova_clinica') }}" class="form-inline">
+  <input type="text" name="nome" placeholder="Nome da clínica" required />
+  <select name="medico_responsavel_id">
+    <option value="">Médico responsável (opcional)</option>
+    {% for m in medicos %}
+      <option value="{{ m.id }}">{{ m.nome }}{% if m.clinica %} - {{ m.clinica.nome }}{% endif %}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn--secondary">Criar Clínica</button>
+</form>
+{% endif %}
+
 <h2>Novo Usuário</h2>
 <form method="POST" action="{{ url_for('usuarios.novo') }}" class="form-inline">
   <input type="text" name="nome" placeholder="Nome" required />
@@ -16,6 +30,16 @@
       {% endif %}
     {% endfor %}
   </select>
+  {% if current_user.acesso_global %}
+  <select name="clinica_id">
+    <option value="">Acesso global / interno</option>
+    {% for clinica in clinicas %}
+      <option value="{{ clinica.id }}">{{ clinica.nome }}</option>
+    {% endfor %}
+  </select>
+  {% elif current_user.clinica %}
+  <input type="text" value="{{ current_user.clinica.nome }}" disabled />
+  {% endif %}
   <button type="submit" class="btn btn--primary">Criar</button>
 </form>
 
@@ -33,12 +57,13 @@
 <h2>Usuários Ativos</h2>
 <table class="tabela">
   <thead>
-    <tr><th>Nome</th><th>Cargo</th><th>Nível</th><th>Ações</th></tr>
+    <tr><th>Nome</th><th>Clínica</th><th>Cargo</th><th>Nível</th><th>Ações</th></tr>
   </thead>
   <tbody>
     {% for u in usuarios %}
     <tr>
       <td>{{ u.nome }}</td>
+      <td>{{ u.clinica.nome if u.clinica else 'Global' }}</td>
       <td>{{ u.cargo.nome }}</td>
       <td>{{ u.nivel }}</td>
       <td>
@@ -51,8 +76,42 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="empty">Nenhum usuário.</td></tr>
+    <tr><td colspan="5" class="empty">Nenhum usuário.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+
+{% if current_user.nivel == 0 %}
+<h2>Clínicas</h2>
+<table class="tabela">
+  <thead>
+    <tr><th>Clínica</th><th>Médico responsável</th><th>Usuários</th><th>Ações</th></tr>
+  </thead>
+  <tbody>
+    {% for clinica in clinicas %}
+    <tr>
+      <td>
+        <form method="POST" action="{{ url_for('usuarios.editar_clinica', cid=clinica.id) }}" class="form-inline-edit">
+          <input type="text" name="nome" value="{{ clinica.nome }}" required />
+      </td>
+      <td>
+          <select name="medico_responsavel_id">
+            <option value="">Não definido</option>
+            {% for m in medicos %}
+              <option value="{{ m.id }}" {% if clinica.medico_responsavel_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+      </td>
+      <td>{{ clinica.usuarios | selectattr('ativo', 'equalto', true) | list | length }}</td>
+      <td>
+          <button type="submit" class="btn btn--sm">Salvar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">Nenhuma clínica.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% endblock %}

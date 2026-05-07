@@ -3,6 +3,24 @@ from flask_login import UserMixin
 from app.extensions import db
 
 
+class Clinica(db.Model):
+    __tablename__ = "clinicas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(120), unique=True, nullable=False)
+    ativo = db.Column(db.Boolean, default=True, nullable=False)
+    medico_responsavel_id = db.Column(db.Integer, db.ForeignKey("medicos.id"), nullable=True)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuarios = db.relationship("Usuario", back_populates="clinica")
+    medicos = db.relationship("Medico", back_populates="clinica", foreign_keys="Medico.clinica_id")
+    pacientes = db.relationship("Paciente", back_populates="clinica")
+    medico_responsavel = db.relationship("Medico", foreign_keys=[medico_responsavel_id], post_update=True)
+
+    def __repr__(self):
+        return f"<Clinica {self.nome}>"
+
+
 class Cargo(db.Model):
     __tablename__ = "cargos"
 
@@ -23,16 +41,22 @@ class Usuario(UserMixin, db.Model):
     nome = db.Column(db.String(80), unique=True, nullable=False)
     senha_hash = db.Column(db.String(256), nullable=False)
     cargo_id = db.Column(db.Integer, db.ForeignKey("cargos.id"), nullable=False)
+    clinica_id = db.Column(db.Integer, db.ForeignKey("clinicas.id"), nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     cargo = db.relationship("Cargo", back_populates="usuarios")
+    clinica = db.relationship("Clinica", back_populates="usuarios")
     logs = db.relationship("Log", back_populates="usuario")
     notificacoes = db.relationship("Notificacao", back_populates="usuario")
 
     @property
     def nivel(self):
         return self.cargo.nivel
+
+    @property
+    def acesso_global(self):
+        return self.nivel == 0 or self.clinica_id is None
 
     def __repr__(self):
         return f"<Usuario {self.nome}>"
@@ -44,8 +68,10 @@ class Medico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(120), nullable=False)
     crm = db.Column(db.String(30), unique=True, nullable=False)
+    clinica_id = db.Column(db.Integer, db.ForeignKey("clinicas.id"), nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
 
+    clinica = db.relationship("Clinica", back_populates="medicos", foreign_keys=[clinica_id])
     pacientes = db.relationship("Paciente", back_populates="medico")
 
     def __repr__(self):
@@ -80,6 +106,7 @@ class Paciente(db.Model):
 
     # Vínculo médico
     medico_id = db.Column(db.Integer, db.ForeignKey("medicos.id"), nullable=True)
+    clinica_id = db.Column(db.Integer, db.ForeignKey("clinicas.id"), nullable=True)
     nome_medico_digitado = db.Column(db.String(120), nullable=True)  # texto original do formulário
 
     # Observações internas
@@ -95,6 +122,7 @@ class Paciente(db.Model):
     concluido_em = db.Column(db.DateTime, nullable=True)  # marcado como concluído
 
     medico = db.relationship("Medico", back_populates="pacientes")
+    clinica = db.relationship("Clinica", back_populates="pacientes")
     logs = db.relationship("Log", back_populates="paciente")
 
     @property

@@ -177,6 +177,14 @@ def _ensure_runtime_schema_updates():
     inspector = inspect(db.engine)
     table_names = inspector.get_table_names()
 
+    if "clinicas" not in table_names:
+        return
+
+    _ensure_column(inspector, "usuarios", "clinica_id", "INTEGER")
+    _ensure_column(inspector, "medicos", "clinica_id", "INTEGER")
+    _ensure_column(inspector, "pacientes", "clinica_id", "INTEGER")
+    _ensure_column(inspector, "clinicas", "medico_responsavel_id", "INTEGER")
+
     if "pacientes" in table_names:
         colunas_pacientes = {col["name"] for col in inspector.get_columns("pacientes")}
         if "concluido_em" not in colunas_pacientes:
@@ -188,3 +196,21 @@ def _ensure_runtime_schema_updates():
                 raise RuntimeError(
                     "Falha ao criar coluna 'concluido_em' na tabela 'pacientes'."
                 ) from exc
+
+
+def _ensure_column(inspector, table_name, column_name, column_sql):
+    if table_name not in inspector.get_table_names():
+        return
+
+    existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+    if column_name in existing_columns:
+        return
+
+    try:
+        db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}"))
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        raise RuntimeError(
+            f"Falha ao criar coluna '{column_name}' na tabela '{table_name}'."
+        ) from exc

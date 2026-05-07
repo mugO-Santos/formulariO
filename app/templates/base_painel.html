@@ -62,6 +62,7 @@
       <h2>Meu Perfil</h2>
       <p><strong>Usuário:</strong> {{ current_user.nome }}</p>
       <p><strong>Cargo:</strong> {{ current_user.cargo.nome }}</p>
+      <p><strong>Clínica:</strong> {{ current_user.clinica.nome if current_user.clinica else 'Global' }}</p>
       <form method="POST" action="{{ url_for('painel.meu_perfil') }}">
         <label>Nova Senha
           <input type="password" name="nova_senha" minlength="6" required />

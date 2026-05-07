@@ -7,12 +7,20 @@
 <form method="POST" action="{{ url_for('medicos.novo') }}" class="form-inline">
   <input type="text" name="nome" placeholder="Nome do médico" required />
   <input type="text" name="crm" placeholder="CRM" required />
+  {% if current_user.acesso_global %}
+  <select name="clinica_id">
+    <option value="">Sem clínica definida</option>
+    {% for clinica in clinicas %}
+      <option value="{{ clinica.id }}">{{ clinica.nome }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
   <button type="submit" class="btn btn--primary">Adicionar</button>
 </form>
 
 <table class="tabela">
   <thead>
-    <tr><th>Nome</th><th>CRM</th><th>Pacientes</th><th>Ações</th></tr>
+    <tr><th>Nome</th><th>Clínica</th><th>CRM</th><th>Pacientes</th><th>Ações</th></tr>
   </thead>
   <tbody>
     {% for m in medicos %}
@@ -21,15 +29,24 @@
         <form method="POST" action="{{ url_for('medicos.editar', mid=m.id) }}" class="form-inline-edit">
           <input type="text" name="nome" value="{{ m.nome }}" required />
           <input type="text" name="crm" value="{{ m.crm }}" required />
+          {% if current_user.acesso_global %}
+          <select name="clinica_id">
+            <option value="">Sem clínica definida</option>
+            {% for clinica in clinicas %}
+              <option value="{{ clinica.id }}" {% if m.clinica_id == clinica.id %}selected{% endif %}>{{ clinica.nome }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
           <button type="submit" class="btn btn--sm">Salvar</button>
         </form>
       </td>
+      <td>{{ m.clinica.nome if m.clinica else 'Global' }}</td>
       <td>{{ m.crm }}</td>
       <td>{{ contagem[m.id] }}</td>
       <td></td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="empty">Nenhum médico cadastrado.</td></tr>
+    <tr><td colspan="5" class="empty">Nenhum médico cadastrado.</td></tr>
     {% endfor %}
   </tbody>
 </table>
