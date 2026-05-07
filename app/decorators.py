@@ -13,3 +13,13 @@ def nivel_minimo(nivel: int):
             return f(*args, **kwargs)
         return wrapped
     return decorator
+
+
+def superadmin_required(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_superadmin:
+            abort(403)
+        return f(*args, **kwargs)
+
+    return wrapped

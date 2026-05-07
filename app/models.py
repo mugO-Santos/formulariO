@@ -44,6 +44,7 @@ class Usuario(UserMixin, db.Model):
     senha_hash = db.Column(db.String(256), nullable=False)
     cargo_id = db.Column(db.Integer, db.ForeignKey("cargos.id"), nullable=False)
     clinica_id = db.Column(db.Integer, db.ForeignKey("clinicas.id"), nullable=True)
+    is_superadmin = db.Column(db.Boolean, default=False, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -59,7 +60,11 @@ class Usuario(UserMixin, db.Model):
 
     @property
     def acesso_global(self):
-        return self.nivel == 0 or self.clinica_id is None
+        return self.is_superadmin
+
+    @property
+    def admin_clinica(self):
+        return self.nivel == 0
 
     def __repr__(self):
         return f"<Usuario {self.nome}>"

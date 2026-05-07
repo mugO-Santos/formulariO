@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import current_user, login_required
 from app.extensions import db
 from app.models import Clinica, Log, Medico, Paciente
-from app.decorators import nivel_minimo
+from app.decorators import superadmin_required
 from app.scope import pode_acessar_medico, scoped_medicos, sincronizar_clinica_pacientes_do_medico
 
 bp = Blueprint("medicos", __name__, url_prefix="/painel/medicos")
@@ -10,7 +10,7 @@ bp = Blueprint("medicos", __name__, url_prefix="/painel/medicos")
 
 @bp.route("/")
 @login_required
-@nivel_minimo(1)
+@superadmin_required
 def index():
     medicos = scoped_medicos(Medico.query.filter_by(ativo=True), current_user).order_by(Medico.nome).all()
     contagem = {
@@ -28,7 +28,7 @@ def index():
 
 @bp.route("/novo", methods=["POST"])
 @login_required
-@nivel_minimo(1)
+@superadmin_required
 def novo():
     nome = request.form.get("nome", "").strip()
     crm = request.form.get("crm", "").strip()
@@ -56,7 +56,7 @@ def novo():
 
 @bp.route("/<int:mid>/editar", methods=["POST"])
 @login_required
-@nivel_minimo(1)
+@superadmin_required
 def editar(mid):
     medico = Medico.query.get_or_404(mid)
     if not pode_acessar_medico(current_user, medico):

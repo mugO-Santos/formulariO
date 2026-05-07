@@ -167,8 +167,14 @@ def _seed_admin():
                 nome=admin_nome,
                 senha_hash=generate_password_hash(admin_senha),
                 cargo_id=cargo_admin.id,
+                is_superadmin=True,
             )
         )
+        db.session.commit()
+
+    admin = Usuario.query.filter_by(nome=admin_nome).first()
+    if admin and not admin.is_superadmin:
+        admin.is_superadmin = True
         db.session.commit()
 
 
@@ -181,6 +187,7 @@ def _ensure_runtime_schema_updates():
         return
 
     _ensure_column(inspector, "usuarios", "clinica_id", "INTEGER")
+    _ensure_column(inspector, "usuarios", "is_superadmin", "BOOLEAN DEFAULT FALSE")
     _ensure_column(inspector, "medicos", "clinica_id", "INTEGER")
     _ensure_column(inspector, "pacientes", "clinica_id", "INTEGER")
     _ensure_column(inspector, "clinicas", "medico_responsavel_id", "INTEGER")

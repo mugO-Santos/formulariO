@@ -1,13 +1,17 @@
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, false, or_
 
 from .extensions import db
 from .models import Encaminhamento, Log, Medico, Paciente, Usuario
 
 
 def clinica_escopo_id(usuario):
-    if usuario is None or usuario.acesso_global:
+    if usuario is None or usuario.is_superadmin:
         return None
     return usuario.clinica_id
+
+
+def usuario_sem_escopo(usuario):
+    return usuario is not None and not usuario.is_superadmin and usuario.clinica_id is None
 
 
 def filtro_paciente_clinica(clinica_id):
@@ -37,6 +41,8 @@ def filtro_paciente_encaminhado_para_clinica(clinica_id):
 
 
 def scoped_pacientes(query, usuario):
+    if usuario_sem_escopo(usuario):
+        return query.filter(false())
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return query
@@ -44,6 +50,8 @@ def scoped_pacientes(query, usuario):
 
 
 def scoped_medicos(query, usuario):
+    if usuario_sem_escopo(usuario):
+        return query.filter(false())
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return query
@@ -51,6 +59,8 @@ def scoped_medicos(query, usuario):
 
 
 def scoped_usuarios(query, usuario):
+    if usuario_sem_escopo(usuario):
+        return query.filter(false())
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return query
@@ -58,6 +68,8 @@ def scoped_usuarios(query, usuario):
 
 
 def scoped_logs(query, usuario):
+    if usuario_sem_escopo(usuario):
+        return query.filter(false())
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return query
@@ -74,16 +86,22 @@ def scoped_logs(query, usuario):
 
 
 def pode_acessar_medico(usuario, medico):
+    if usuario_sem_escopo(usuario):
+        return False
     clinica_id = clinica_escopo_id(usuario)
     return clinica_id is None or medico.clinica_id == clinica_id
 
 
 def pode_acessar_usuario(usuario, alvo):
+    if usuario_sem_escopo(usuario):
+        return False
     clinica_id = clinica_escopo_id(usuario)
     return clinica_id is None or alvo.clinica_id == clinica_id
 
 
 def pode_acessar_paciente(usuario, paciente):
+    if usuario_sem_escopo(usuario):
+        return False
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return True
@@ -107,6 +125,8 @@ def paciente_foi_encaminhado_para(clinica_id, paciente):
 
 
 def pode_gerenciar_paciente(usuario, paciente):
+    if usuario_sem_escopo(usuario):
+        return False
     clinica_id = clinica_escopo_id(usuario)
     if clinica_id is None:
         return True

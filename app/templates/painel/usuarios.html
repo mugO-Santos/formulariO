@@ -4,7 +4,7 @@
 {% block content %}
 <h1 class="page-title">Usuários</h1>
 
-{% if current_user.nivel == 0 %}
+{% if current_user.is_superadmin %}
 <h2>Nova Clínica</h2>
 <form method="POST" action="{{ url_for('usuarios.nova_clinica') }}" class="form-inline">
   <input type="text" name="nome" placeholder="Nome da clínica" required />
@@ -34,9 +34,9 @@
       {% endif %}
     {% endfor %}
   </select>
-  {% if current_user.acesso_global %}
+  {% if current_user.is_superadmin %}
   <select name="clinica_id">
-    <option value="">Acesso global / interno</option>
+    <option value="">Selecione a clínica</option>
     {% for clinica in clinicas %}
       <option value="{{ clinica.id }}">{{ clinica.nome }}</option>
     {% endfor %}
@@ -47,6 +47,7 @@
   <button type="submit" class="btn btn--primary">Criar</button>
 </form>
 
+{% if current_user.is_superadmin %}
 <h2>Novo Cargo</h2>
 <form method="POST" action="{{ url_for('usuarios.novo_cargo') }}" class="form-inline">
   <input type="text" name="nome" placeholder="Nome do cargo" required />
@@ -57,6 +58,7 @@
   </select>
   <button type="submit" class="btn btn--secondary">Criar Cargo</button>
 </form>
+{% endif %}
 
 <h2>Usuários Ativos</h2>
 <table class="tabela">
@@ -85,7 +87,7 @@
   </tbody>
 </table>
 
-{% if current_user.nivel == 0 %}
+{% if current_user.is_superadmin %}
 <h2>Clínicas</h2>
 <table class="tabela">
   <thead>

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from app.extensions import db
 from app.models import Usuario, Log, Notificacao, Cargo
 
@@ -51,12 +51,17 @@ def esqueci_senha():
     admins = (
         Usuario.query
         .join(Cargo)
-        .filter(Cargo.nivel <= 1, Usuario.ativo == True)
+        .filter(Usuario.ativo == True)
     )
     if alvo and alvo.clinica_id is not None:
         admins = admins.filter(
-            or_(Usuario.clinica_id == alvo.clinica_id, Usuario.clinica_id.is_(None))
+            or_(
+                Usuario.is_superadmin.is_(True),
+                and_(Usuario.clinica_id == alvo.clinica_id, Cargo.nivel <= 1),
+            )
         )
+    else:
+        admins = admins.filter(Usuario.is_superadmin.is_(True))
     admins = (
         admins
         .all()

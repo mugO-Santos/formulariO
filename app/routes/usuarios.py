@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import Clinica, Cargo, Medico, Usuario, Log
-from app.decorators import nivel_minimo
+from app.decorators import nivel_minimo, superadmin_required
 from app.scope import pode_acessar_usuario, scoped_medicos, scoped_usuarios, sincronizar_clinica_pacientes_do_medico
 
 bp = Blueprint("usuarios", __name__, url_prefix="/painel/usuarios")
@@ -11,7 +11,7 @@ bp = Blueprint("usuarios", __name__, url_prefix="/painel/usuarios")
 
 @bp.route("/")
 @login_required
-@nivel_minimo(1)
+@nivel_minimo(0)
 def index():
     usuarios = scoped_usuarios(Usuario.query.filter_by(ativo=True), current_user).order_by(Usuario.nome).all()
     cargos = Cargo.query.order_by(Cargo.nivel).all()
@@ -32,7 +32,7 @@ def index():
 
 @bp.route("/novo", methods=["POST"])
 @login_required
-@nivel_minimo(1)
+@nivel_minimo(0)
 def novo():
     nome = request.form.get("nome", "").strip()
     senha = request.form.get("senha", "")
@@ -55,9 +55,11 @@ def novo():
         return redirect(url_for("usuarios.index"))
 
     clinica_id = None
-    if current_user.acesso_global:
-        if clinica_id_raw:
-            clinica_id = Clinica.query.get_or_404(int(clinica_id_raw)).id
+    if current_user.is_superadmin:
+        if not clinica_id_raw:
+            flash("Selecione a clínica do usuário.", "danger")
+            return redirect(url_for("usuarios.index"))
+        clinica_id = Clinica.query.get_or_404(int(clinica_id_raw)).id
     else:
         clinica_id = current_user.clinica_id
 
@@ -74,7 +76,7 @@ def novo():
 
 @bp.route("/nova-clinica", methods=["POST"])
 @login_required
-@nivel_minimo(0)
+@superadmin_required
 def nova_clinica():
     nome = request.form.get("nome", "").strip()
     medico_id_raw = request.form.get("medico_responsavel_id", "").strip()
@@ -106,7 +108,7 @@ def nova_clinica():
 
 @bp.route("/clinica/<int:cid>/editar", methods=["POST"])
 @login_required
-@nivel_minimo(0)
+@superadmin_required
 def editar_clinica(cid):
     clinica = Clinica.query.get_or_404(cid)
     nome = request.form.get("nome", "").strip()
@@ -139,7 +141,7 @@ def editar_clinica(cid):
 
 @bp.route("/<int:uid>/excluir", methods=["POST"])
 @login_required
-@nivel_minimo(1)
+@nivel_minimo(0)
 def excluir(uid):
     usuario = Usuario.query.get_or_404(uid)
     if not pode_acessar_usuario(current_user, usuario):
@@ -147,8 +149,8 @@ def excluir(uid):
     if usuario.id == current_user.id:
         flash("Você não pode excluir a si mesmo.", "danger")
         return redirect(url_for("usuarios.index"))
-    if usuario.nivel == 0 and current_user.nivel != 0:
-        flash("Sem permissão para excluir usuários Admin.", "danger")
+    if usuario.is_superadmin and not current_user.is_superadmin:
+        flash("Sem permissão para excluir superadmin.", "danger")
         return redirect(url_for("usuarios.index"))
     usuario.ativo = False
     db.session.commit()
@@ -158,15 +160,12 @@ def excluir(uid):
 
 @bp.route("/novo-cargo", methods=["POST"])
 @login_required
-@nivel_minimo(1)
+@superadmin_required
 def novo_cargo():
     nome = request.form.get("nome", "").strip()
     nivel = request.form.get("nivel", "").strip()
     if not nome or nivel not in ("0", "1", "2"):
         flash("Nome e nível (0, 1 ou 2) são obrigatórios.", "danger")
-        return redirect(url_for("usuarios.index"))
-    if int(nivel) == 0 and current_user.nivel != 0:
-        flash("Apenas Admin pode criar cargos de nível 0.", "danger")
         return redirect(url_for("usuarios.index"))
     if Cargo.query.filter_by(nome=nome).first():
         flash("Cargo já existe.", "danger")

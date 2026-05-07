@@ -17,9 +17,12 @@
       <a href="{{ url_for('painel.index') }}" class="nav-btn nav-btn--home" title="Início">🏠 Início</a>
       <a href="{{ url_for('painel.pacientes_concluidos') }}" class="nav-btn">Pacientes</a>
 
-      {% if current_user.nivel <= 1 %}
+      {% if current_user.admin_clinica %}
       <!-- Usuários -->
       <button class="nav-btn" onclick="openModal('modal-usuarios')">Usuários</button>
+      {% endif %}
+
+      {% if current_user.is_superadmin %}
       <!-- Médicos -->
       <button class="nav-btn" onclick="openModal('modal-medicos')">Médicos</button>
       {% endif %}
@@ -28,7 +31,7 @@
       <a href="{{ url_for('painel.excluidos') }}" class="nav-btn">Excluídos</a>
       {% endif %}
 
-      {% if current_user.nivel <= 1 %}
+      {% if current_user.is_superadmin %}
       <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
       {% endif %}
 
@@ -84,7 +87,7 @@
     </div>
   </div>
 
-  {% if current_user.nivel <= 1 %}
+  {% if current_user.admin_clinica %}
   <!-- Modal Usuários -->
   <div id="modal-usuarios" class="modal hidden">
     <div class="modal__box modal__box--wide">
@@ -93,7 +96,9 @@
       <button class="modal__close" onclick="closeModal('modal-usuarios')">✕</button>
     </div>
   </div>
+  {% endif %}
 
+  {% if current_user.is_superadmin %}
   <!-- Modal Médicos -->
   <div id="modal-medicos" class="modal hidden">
     <div class="modal__box modal__box--wide">
