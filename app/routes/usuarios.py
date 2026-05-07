@@ -1,4 +1,6 @@
 from flask import Blueprint, abort, render_template, request, flash, redirect, url_for
+import os, uuid
+from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from app.extensions import db
@@ -174,3 +176,50 @@ def novo_cargo():
     db.session.commit()
     flash(f"Cargo '{nome}' criado.", "success")
     return redirect(url_for("usuarios.index"))
+
+
+_LOGO_ALLOWED = {"png", "jpg", "jpeg", "gif", "webp"}
+_LOGO_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
+@bp.route("/clinica/logo", methods=["POST"])
+@login_required
+@nivel_minimo(0)
+def atualizar_logo_clinica():
+    if current_user.is_superadmin or not current_user.clinica_id:
+        flash("Acesse esta função como admin de uma clínica.", "danger")
+        return redirect(url_for("painel.meu_perfil"))
+
+    clinica = Clinica.query.get_or_404(current_user.clinica_id)
+    nome_impresso = request.form.get("nome_impresso", "").strip() or None
+    clinica.nome_impresso = nome_impresso
+
+    arquivo = request.files.get("logo")
+    if arquivo and arquivo.filename:
+        ext = arquivo.filename.rsplit(".", 1)[-1].lower()
+        if ext not in _LOGO_ALLOWED:
+            flash("Formato inválido. Use PNG, JPG, GIF ou WEBP.", "danger")
+            return redirect(url_for("painel.meu_perfil"))
+        arquivo.stream.seek(0, 2)
+        tamanho = arquivo.stream.tell()
+        arquivo.stream.seek(0)
+        if tamanho > _LOGO_MAX_BYTES:
+            flash("Imagem muito grande. Máximo permitido: 2 MB.", "danger")
+            return redirect(url_for("painel.meu_perfil"))
+        from flask import current_app
+        logo_dir = os.path.join(current_app.static_folder, "logos")
+        os.makedirs(logo_dir, exist_ok=True)
+        # Remove logo anterior se existir
+        if clinica.logo_path:
+            caminho_antigo = os.path.join(current_app.static_folder, clinica.logo_path.lstrip("/"))
+            if os.path.isfile(caminho_antigo):
+                os.remove(caminho_antigo)
+        nome_arquivo = f"clinica_{clinica.id}_{uuid.uuid4().hex[:8]}.{ext}"
+        caminho = os.path.join(logo_dir, secure_filename(nome_arquivo))
+        arquivo.save(caminho)
+        clinica.logo_path = f"logos/{secure_filename(nome_arquivo)}"
+
+    db.session.add(Log(usuario_id=current_user.id, acao="Atualizou logo/nome da clínica"))
+    db.session.commit()
+    flash("Configurações da clínica atualizadas.", "success")
+    return redirect(url_for("painel.meu_perfil"))

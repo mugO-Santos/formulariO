@@ -11,6 +11,8 @@ class Clinica(db.Model):
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     eh_hospital = db.Column(db.Boolean, default=False, nullable=False)
     medico_responsavel_id = db.Column(db.Integer, db.ForeignKey("medicos.id"), nullable=True)
+    logo_path = db.Column(db.String(256), nullable=True)
+    nome_impresso = db.Column(db.String(120), nullable=True)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuarios = db.relationship("Usuario", back_populates="clinica")

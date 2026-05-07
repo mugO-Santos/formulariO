@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import textwrap
+import os
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
@@ -421,6 +422,36 @@ def exportar_pdf(pid):
         c.drawString(margem_x + 16, topo - 54, f"Emitido em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
         y_inicio_cards = topo - 92
+        # Logo e nome da clínica
+        clinica = paciente.clinica
+        logo_desenhado = False
+        if clinica and clinica.logo_path:
+            from flask import current_app
+            logo_abs = os.path.join(current_app.static_folder, clinica.logo_path)
+            if os.path.isfile(logo_abs):
+                try:
+                    from reportlab.lib.utils import ImageReader
+                    img = ImageReader(logo_abs)
+                    iw, ih = img.getSize()
+                    max_w, max_h = 100, 40
+                    escala = min(max_w / iw, max_h / ih, 1.0)
+                    dw, dh = iw * escala, ih * escala
+                    # posição: canto superior direito do header
+                    ix = margem_x + area_largura - dw - 10
+                    iy = topo - 12 - dh
+                    c.drawImage(logo_abs, ix, iy, width=dw, height=dh, mask="auto")
+                    logo_desenhado = True
+                except Exception:
+                    pass
+        if clinica and (clinica.nome_impresso or clinica.nome):
+            nome_clinica = clinica.nome_impresso or clinica.nome
+            # Texto abaixo do header, alinhado à direita
+            c.setFillColor(colors.HexColor("#0B3A5B"))
+            c.setFont("Helvetica-Bold", 8)
+            label = nome_clinica[:50]
+            tw = c.stringWidth(label, "Helvetica-Bold", 8)
+            c.drawString(margem_x + area_largura - tw - 10, topo - 78, label)
+
         gap = 14
         card_largura = (area_largura - gap) / 2
 
