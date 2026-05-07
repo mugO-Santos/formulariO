@@ -33,6 +33,10 @@ def create_app():
     def favicon():
         return ("", 204)
 
+    @app.get("/healthz")
+    def healthz():
+        return {"status": "ok"}, 200
+
     # ── Configuração ──────────────────────────────────────────────
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///formulario.db")
