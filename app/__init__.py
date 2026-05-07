@@ -1,10 +1,12 @@
 import os
 import re
 import ssl
+import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import Flask
-from sqlalchemy import inspect, text
+from sqlalchemy import event, inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 from .extensions import db, login_manager
 from .models import Usuario
 
@@ -34,7 +36,11 @@ def create_app():
     # ── Configuração ──────────────────────────────────────────────
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///formulario.db")
-    _engine_options = {}
+    _engine_options = {
+        "pool_pre_ping": True,
+        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "300")),
+        "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", "30")),
+    }
 
     # pg8000 requires postgresql+pg8000:// dialect prefix
     if _db_url.startswith("postgres://"):
@@ -63,6 +69,24 @@ def create_app():
 
     app.jinja_env.filters["horario_sp"] = _fmt_sp
 
+    if not app.debug:
+        app.logger.setLevel(logging.INFO)
+
+    def log_sqlalchemy_error(exception_context):
+        app.logger.exception(
+            "Erro de banco durante a requisicao.",
+            exc_info=exception_context.original_exception,
+        )
+
+    @app.teardown_request
+    def rollback_failed_transaction(exception=None):
+        if exception is None:
+            return
+        try:
+            db.session.rollback()
+        except SQLAlchemyError:
+            app.logger.exception("Falha ao desfazer transacao apos erro na requisicao.")
+
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(Usuario, int(user_id))
@@ -84,6 +108,8 @@ def create_app():
 
     # ── Criação do banco e seed do Admin ──────────────────────────
     with app.app_context():
+        if not event.contains(db.engine, "handle_error", log_sqlalchemy_error):
+            event.listen(db.engine, "handle_error", log_sqlalchemy_error)
         db.create_all()
         _ensure_runtime_schema_updates()
         _seed_admin()

@@ -129,7 +129,7 @@
       <!-- Aceite LGPD -->
       <div class="lgpd-box">
         <label class="lgpd-box__aceite">
-          <input type="checkbox" name="aceite_lgpd" value="1" required />
+          <input type="checkbox" name="aceite_lgpd" value="1" required {% if dados.get('aceite_lgpd') %}checked{% endif %} />
           Ao continuar, declaro que li e concordo com o
           <button type="button" class="lgpd-link" id="btn-abrir-lgpd">Termo LGPD</button>.
         </label>

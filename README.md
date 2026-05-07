@@ -56,6 +56,8 @@ O link do formulário é enviado ao paciente, que preenche os dados obrigatório
 | `DATABASE_URL` | URL do banco PostgreSQL (Neon) |
 | `ADMIN_USER` | Login do admin inicial |
 | `ADMIN_PASS` | Senha do admin inicial |
+| `DB_POOL_RECYCLE` | Segundos para reciclar conexões ociosas do pool (padrão: 300) |
+| `DB_POOL_TIMEOUT` | Tempo máximo para aguardar conexão do pool (padrão: 30) |
 
 ---
 
