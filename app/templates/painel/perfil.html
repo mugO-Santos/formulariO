@@ -6,8 +6,8 @@
   <div class="perfil__header">
     <h1>{{ paciente.nome }}</h1>
     <div class="perfil__acoes">
-      <button type="button" class="btn btn--secondary" onclick="abrirPopupImpressao({{ paciente.id }})">Imprimir</button>
-      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" class="btn btn--sm">PDF (opcional)</a>
+      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" class="btn btn--primary" target="_blank" rel="noopener">Gerar PDF</a>
+      <button type="button" class="btn btn--secondary" onclick="abrirPopupImpressao({{ paciente.id }})">Impressão rápida (fallback)</button>
       {% if current_user.nivel <= 1 and pode_gerenciar %}
       <a href="{{ url_for('painel.editar_paciente', pid=paciente.id) }}" class="btn btn--primary">Editar</a>
       <form method="POST" action="{{ url_for('painel.excluir_paciente', pid=paciente.id) }}"

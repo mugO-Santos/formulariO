@@ -370,7 +370,7 @@ def exportar_pdf(pid):
     response = make_response(pdf)
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = (
-        f"inline; filename=paciente_{paciente.id}.pdf"
+        f"attachment; filename=paciente_{paciente.id}.pdf"
     )
     return response
 
@@ -384,7 +384,7 @@ def imprimir_paciente(pid):
     db.session.add(Log(
         usuario_id=current_user.id,
         paciente_id=pid,
-        acao="Abriu impressão via pop-up",
+        acao="Abriu impressão rápida via pop-up",
     ))
     db.session.commit()
     return render_template("painel/print_perfil.html", paciente=paciente)
