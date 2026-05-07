@@ -106,6 +106,11 @@ requirements.txt
 - "Esqueci minha senha" não redefine automaticamente — gera notificação interna para o responsável criar um novo login
 - Médicos são entidade separada dos Usuários (não fazem login)
 - O aceite do Termo LGPD fica registrado no perfil com data e hora (visível ao Nível 0)
+- Em produção (Railway), o PDF depende de bibliotecas nativas do WeasyPrint. O arquivo `nixpacks.toml` já inclui os pacotes Linux necessários para evitar erro na geração de PDF.
+
+### Railway e PDF (WeasyPrint)
+
+Se aparecer a mensagem "Não foi possível gerar PDF neste ambiente", confirme que o deploy está usando o arquivo `nixpacks.toml` da raiz e faça um novo deploy.
 
 
 ## PÁGINAS
