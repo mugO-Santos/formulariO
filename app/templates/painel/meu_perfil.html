@@ -19,39 +19,4 @@
   </div>
   <button type="submit" class="btn btn--primary">Salvar</button>
 </form>
-
- {% if current_user.nivel == 0 and not current_user.is_superadmin and current_user.clinica %}
- <hr style="margin:2rem 0;">
- <h2>Configurações da Clínica no PDF</h2>
- <p class="hint">A imagem e o nome abaixo aparecem no cabeçalho do PDF gerado para os pacientes desta clínica.</p>
- 
- {% if current_user.clinica.logo_path %}
- <div style="margin-bottom:1rem;">
-   <img src="{{ url_for('static', filename=current_user.clinica.logo_path) }}"
-        alt="Logo atual"
-        style="max-height:64px; max-width:200px; object-fit:contain; border:1px solid #e2e8f0; border-radius:8px; padding:4px;">
-   <p style="font-size:.8rem; color:#64748b; margin-top:.25rem;">Logo atual</p>
- </div>
- {% endif %}
- 
- <form method="POST"
-       action="{{ url_for('usuarios.atualizar_logo_clinica') }}"
-       enctype="multipart/form-data"
-       class="form-edit"
-       style="max-width:400px">
-   <div class="form-group">
-     <label>Logo da Clínica <span style="color:#94a3b8;font-size:.8rem;">(PNG, JPG ou WEBP — máx. 2 MB)</span></label>
-     <input type="file" name="logo" accept=".png,.jpg,.jpeg,.webp,.gif" />
-   </div>
-   <div class="form-group">
-     <label>Nome da Clínica no PDF</label>
-     <input type="text"
-            name="nome_impresso"
-            maxlength="120"
-            placeholder="Ex: Clínica São Lucas"
-            value="{{ current_user.clinica.nome_impresso or '' }}" />
-   </div>
-   <button type="submit" class="btn btn--primary">Salvar Configurações</button>
- </form>
- {% endif %}
 {% endblock %}

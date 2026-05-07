@@ -91,12 +91,27 @@
   gap: 14px;
 }
 .modal__box--wide { max-width: 700px; }
+.modal__box--config { max-width: 520px; }
 .modal__box h2 { color: var(--azul); font-size: 1.1rem; }
+.modal__hint { color: #64748b; font-size: 0.88rem; margin-top: -6px; }
 .modal__close {
   position: absolute; top: 12px; right: 14px;
   background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #888;
 }
 .modal__close:hover { color: var(--perigo); }
+
+.config-clinica__form { max-width: 400px; }
+.config-clinica__preview { margin-bottom: 4px; }
+.config-clinica__logo {
+  max-height: 64px;
+  max-width: 200px;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px;
+}
+.config-clinica__caption { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; }
+.config-clinica__muted { color: #94a3b8; font-size: 0.8rem; }
 
 /* ── Notificações ──────────────────────────────────────────── */
 .notif-item { background: var(--azul-claro); border-radius: var(--radius); padding: 8px 12px; font-size: 0.88rem; }

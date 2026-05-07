@@ -182,13 +182,20 @@ _LOGO_ALLOWED = {"png", "jpg", "jpeg", "gif", "webp"}
 _LOGO_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
 
 
+def _redirect_back(default_endpoint="painel.index"):
+    destino = request.referrer
+    if destino:
+        return redirect(destino)
+    return redirect(url_for(default_endpoint))
+
+
 @bp.route("/clinica/logo", methods=["POST"])
 @login_required
 @nivel_minimo(0)
 def atualizar_logo_clinica():
     if current_user.is_superadmin or not current_user.clinica_id:
         flash("Acesse esta função como admin de uma clínica.", "danger")
-        return redirect(url_for("painel.meu_perfil"))
+        return _redirect_back("painel.meu_perfil")
 
     clinica = Clinica.query.get_or_404(current_user.clinica_id)
     nome_impresso = request.form.get("nome_impresso", "").strip() or None
@@ -199,13 +206,13 @@ def atualizar_logo_clinica():
         ext = arquivo.filename.rsplit(".", 1)[-1].lower()
         if ext not in _LOGO_ALLOWED:
             flash("Formato inválido. Use PNG, JPG, GIF ou WEBP.", "danger")
-            return redirect(url_for("painel.meu_perfil"))
+            return _redirect_back("painel.meu_perfil")
         arquivo.stream.seek(0, 2)
         tamanho = arquivo.stream.tell()
         arquivo.stream.seek(0)
         if tamanho > _LOGO_MAX_BYTES:
             flash("Imagem muito grande. Máximo permitido: 2 MB.", "danger")
-            return redirect(url_for("painel.meu_perfil"))
+            return _redirect_back("painel.meu_perfil")
         from flask import current_app
         logo_dir = os.path.join(current_app.static_folder, "logos")
         os.makedirs(logo_dir, exist_ok=True)
@@ -222,4 +229,4 @@ def atualizar_logo_clinica():
     db.session.add(Log(usuario_id=current_user.id, acao="Atualizou logo/nome da clínica"))
     db.session.commit()
     flash("Configurações da clínica atualizadas.", "success")
-    return redirect(url_for("painel.meu_perfil"))
+    return _redirect_back("painel.meu_perfil")

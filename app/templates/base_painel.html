@@ -35,6 +35,10 @@
       <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
       {% endif %}
 
+      {% if current_user.nivel == 0 and not current_user.is_superadmin and current_user.clinica %}
+      <button class="nav-btn" onclick="openModal('modal-configuracoes')">Configurações</button>
+      {% endif %}
+
       <!-- Perfil -->
       <button class="nav-btn" onclick="openModal('modal-perfil')">Perfil</button>
 
@@ -105,6 +109,46 @@
       <h2>Médicos</h2>
       <a href="{{ url_for('medicos.index') }}" class="btn btn--primary">Gerenciar Médicos</a>
       <button class="modal__close" onclick="closeModal('modal-medicos')">✕</button>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if current_user.nivel == 0 and not current_user.is_superadmin and current_user.clinica %}
+  <!-- Modal Configurações -->
+  <div id="modal-configuracoes" class="modal hidden">
+    <div class="modal__box modal__box--config">
+      <h2>Configurações da Clínica</h2>
+      <p class="modal__hint">A imagem e o nome abaixo aparecem no cabeçalho do PDF dos pacientes desta clínica.</p>
+
+      {% if current_user.clinica.logo_path %}
+      <div class="config-clinica__preview">
+        <img src="{{ url_for('static', filename=current_user.clinica.logo_path) }}"
+             alt="Logo atual"
+             class="config-clinica__logo">
+        <p class="config-clinica__caption">Logo atual</p>
+      </div>
+      {% endif %}
+
+      <form method="POST"
+            action="{{ url_for('usuarios.atualizar_logo_clinica') }}"
+            enctype="multipart/form-data"
+            class="form-edit config-clinica__form">
+        <div class="form-group">
+          <label>Logo da Clínica <span class="config-clinica__muted">(PNG, JPG, GIF ou WEBP - máx. 2 MB)</span></label>
+          <input type="file" name="logo" accept=".png,.jpg,.jpeg,.webp,.gif" />
+        </div>
+        <div class="form-group">
+          <label>Nome da Clínica no PDF</label>
+          <input type="text"
+                 name="nome_impresso"
+                 maxlength="120"
+                 placeholder="Ex: Clínica São Lucas"
+                 value="{{ current_user.clinica.nome_impresso or '' }}" />
+        </div>
+        <button type="submit" class="btn btn--primary">Salvar Configurações</button>
+      </form>
+
+      <button class="modal__close" onclick="closeModal('modal-configuracoes')">✕</button>
     </div>
   </div>
   {% endif %}
