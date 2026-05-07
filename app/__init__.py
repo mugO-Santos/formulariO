@@ -89,7 +89,28 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(Usuario, int(user_id))
+        try:
+            uid = int(user_id)
+        except (TypeError, ValueError):
+            return None
+
+        for tentativa in range(2):
+            try:
+                usuario = db.session.get(Usuario, uid)
+                if usuario and not usuario.ativo:
+                    return None
+                return usuario
+            except SQLAlchemyError:
+                db.session.rollback()
+                db.session.remove()
+                app.logger.warning(
+                    "Falha ao carregar usuario da sessao. tentativa=%s",
+                    tentativa + 1,
+                    exc_info=True,
+                )
+                if tentativa == 0:
+                    continue
+        return None
 
     # ── Blueprints ────────────────────────────────────────────────
     from .routes.formulario import bp as formulario_bp
