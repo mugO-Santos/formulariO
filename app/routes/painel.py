@@ -1,4 +1,6 @@
 from datetime import datetime, timezone, timedelta
+from io import BytesIO
+import textwrap
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
@@ -343,12 +345,10 @@ def exportar_pdf(pid):
     if paciente.excluido:
         abort(404)
     try:
-        from weasyprint import HTML
-    except (ImportError, OSError):
-        flash(
-            "Não foi possível gerar PDF neste ambiente. Instale as bibliotecas nativas do WeasyPrint.",
-            "danger",
-        )
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except ImportError:
+        flash("Falha ao gerar PDF neste ambiente. Dependência ReportLab não encontrada.", "danger")
         return redirect(url_for("painel.ver_paciente", pid=pid))
 
     db.session.add(Log(
@@ -357,17 +357,81 @@ def exportar_pdf(pid):
         acao="Exportou perfil em PDF",
     ))
     db.session.commit()
-    html = render_template("painel/pdf_perfil.html", paciente=paciente)
+
+    buffer = BytesIO()
     try:
-        pdf = HTML(string=html).write_pdf()
-    except OSError:
-        flash(
-            "Falha ao gerar PDF: dependências nativas do WeasyPrint não encontradas.",
-            "danger",
-        )
+        c = canvas.Canvas(buffer, pagesize=A4)
+        largura, altura = A4
+        margem_x = 40
+        y = altura - 40
+        line_height = 14
+        largura_texto = 95
+
+        def write_line(texto="", negrito=False):
+            nonlocal y
+            if y < 50:
+                c.showPage()
+                y = altura - 40
+            c.setFont("Helvetica-Bold" if negrito else "Helvetica", 10)
+            c.drawString(margem_x, y, texto)
+            y -= line_height
+
+        def write_field(rotulo, valor):
+            texto = f"{rotulo}: {valor if valor not in (None, '') else '-'}"
+            for linha in textwrap.wrap(texto, largura_texto):
+                write_line(linha)
+
+        def fmt_data(dt):
+            return dt.strftime("%d/%m/%Y") if dt else "-"
+
+        def fmt_data_hora(dt):
+            if not dt:
+                return "-"
+            return dt.strftime("%d/%m/%Y %H:%M")
+
+        write_line("Perfil do Paciente", negrito=True)
+        write_line()
+        write_field("Nome", paciente.nome)
+        write_field("Nome da Mae", paciente.nome_mae)
+        write_field("CPF", paciente.cpf)
+        write_field("RG", paciente.rg)
+        write_field("Data de Nascimento", fmt_data(paciente.data_nascimento))
+        write_field("Estado Civil", paciente.estado_civil)
+        write_field("Profissao", paciente.profissao)
+        write_field("E-mail", paciente.email)
+        write_field("Telefone", paciente.telefone)
+        write_field("CEP", paciente.cep)
+        write_field("Endereco", f"{paciente.endereco or '-'}, {paciente.numero or 's/n'}")
+        write_field("Bairro", paciente.bairro)
+        write_field("Cidade", paciente.cidade)
+
+        medico = "Nao vinculado"
+        if paciente.medico:
+            medico = f"{paciente.medico.nome} - CRM {paciente.medico.crm}"
+        write_field("Medico", medico)
+
+        if paciente.observacoes:
+            write_line()
+            write_line("Observacoes", negrito=True)
+            for linha in textwrap.wrap(paciente.observacoes, largura_texto):
+                write_line(linha)
+
+        write_line()
+        write_line("Historico", negrito=True)
+        logs = sorted(paciente.logs, key=lambda item: item.criado_em or datetime.min, reverse=True)
+        for log in logs:
+            usuario = f" - {log.usuario.nome}" if log.usuario else ""
+            acao = f"{fmt_data_hora(log.criado_em)}{usuario} - {log.acao}"
+            for linha in textwrap.wrap(acao, largura_texto):
+                write_line(linha)
+
+        c.save()
+        buffer.seek(0)
+    except Exception:
+        flash("Falha ao gerar PDF do paciente.", "danger")
         return redirect(url_for("painel.ver_paciente", pid=pid))
 
-    response = make_response(pdf)
+    response = make_response(buffer.getvalue())
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = (
         f"attachment; filename=paciente_{paciente.id}.pdf"
