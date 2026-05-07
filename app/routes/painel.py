@@ -360,70 +360,95 @@ def exportar_pdf(pid):
 
     buffer = BytesIO()
     try:
+        from reportlab.lib import colors
+
         c = canvas.Canvas(buffer, pagesize=A4)
         largura, altura = A4
-        margem_x = 40
-        y = altura - 40
-        line_height = 14
-        largura_texto = 95
+        margem_x = 36
+        margem_y = 36
+        area_largura = largura - (margem_x * 2)
+        topo = altura - margem_y
 
-        def write_line(texto="", negrito=False):
-            nonlocal y
-            if y < 50:
-                c.showPage()
-                y = altura - 40
-            c.setFont("Helvetica-Bold" if negrito else "Helvetica", 10)
-            c.drawString(margem_x, y, texto)
-            y -= line_height
-
-        def write_field(rotulo, valor):
-            texto = f"{rotulo}: {valor if valor not in (None, '') else '-'}"
-            for linha in textwrap.wrap(texto, largura_texto):
-                write_line(linha)
+        def clean(valor):
+            if valor in (None, ""):
+                return "-"
+            return str(valor)
 
         def fmt_data(dt):
             return dt.strftime("%d/%m/%Y") if dt else "-"
 
-        def fmt_data_hora(dt):
-            if not dt:
-                return "-"
-            return dt.strftime("%d/%m/%Y %H:%M")
+        def draw_card(x, y_topo, card_largura, titulo, campos):
+            linha_altura = 18
+            titulo_altura = 28
+            padding = 12
+            card_altura = titulo_altura + (len(campos) * linha_altura) + (padding * 2)
 
-        write_line("Perfil do Paciente", negrito=True)
-        write_line()
-        write_field("Nome", paciente.nome)
-        write_field("Nome da Mae", paciente.nome_mae)
-        write_field("CPF", paciente.cpf)
-        write_field("RG", paciente.rg)
-        write_field("Data de Nascimento", fmt_data(paciente.data_nascimento))
-        write_field("Estado Civil", paciente.estado_civil)
-        write_field("Profissao", paciente.profissao)
-        write_field("E-mail", paciente.email)
-        write_field("Telefone", paciente.telefone)
-        write_field("CEP", paciente.cep)
-        write_field("Endereco", f"{paciente.endereco or '-'}, {paciente.numero or 's/n'}")
-        write_field("Bairro", paciente.bairro)
-        write_field("Cidade", paciente.cidade)
+            c.setFillColor(colors.HexColor("#F8FAFC"))
+            c.roundRect(x, y_topo - card_altura, card_largura, card_altura, 10, fill=1, stroke=0)
+
+            c.setFillColor(colors.HexColor("#E2E8F0"))
+            c.roundRect(x, y_topo - titulo_altura - padding, card_largura, titulo_altura, 10, fill=1, stroke=0)
+
+            c.setFillColor(colors.HexColor("#0F172A"))
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(x + padding, y_topo - titulo_altura + 6 - padding, titulo)
+
+            y_linha = y_topo - titulo_altura - 14 - padding
+            for rotulo, valor in campos:
+                c.setFillColor(colors.HexColor("#334155"))
+                c.setFont("Helvetica-Bold", 9)
+                c.drawString(x + padding, y_linha, f"{rotulo}:")
+
+                c.setFillColor(colors.HexColor("#0F172A"))
+                c.setFont("Helvetica", 9)
+                texto = clean(valor)
+                linhas = textwrap.wrap(texto, width=42) or ["-"]
+                c.drawString(x + 112, y_linha, linhas[0])
+                y_linha -= linha_altura
+                for extra in linhas[1:]:
+                    c.drawString(x + 112, y_linha, extra)
+                    y_linha -= linha_altura
+
+            return card_altura
+
+        # Header visual
+        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.roundRect(margem_x, topo - 70, area_largura, 58, 12, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(margem_x + 16, topo - 36, "Ficha do Paciente")
+        c.setFont("Helvetica", 10)
+        c.drawString(margem_x + 16, topo - 54, f"Emitido em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+
+        y_inicio_cards = topo - 92
+        gap = 14
+        card_largura = (area_largura - gap) / 2
 
         medico = "Nao vinculado"
         if paciente.medico:
             medico = f"{paciente.medico.nome} - CRM {paciente.medico.crm}"
-        write_field("Medico", medico)
 
-        if paciente.observacoes:
-            write_line()
-            write_line("Observacoes", negrito=True)
-            for linha in textwrap.wrap(paciente.observacoes, largura_texto):
-                write_line(linha)
+        card1 = [
+            ("Nome", paciente.nome),
+            ("Nome da Mae", paciente.nome_mae),
+            ("CPF", paciente.cpf),
+            ("RG", paciente.rg),
+            ("Nascimento", fmt_data(paciente.data_nascimento)),
+            ("Estado Civil", paciente.estado_civil),
+            ("Profissao", paciente.profissao),
+        ]
+        card2 = [
+            ("Telefone", paciente.telefone),
+            ("E-mail", paciente.email),
+            ("CEP", paciente.cep),
+            ("Endereco", f"{clean(paciente.endereco)}, {clean(paciente.numero) if paciente.numero else 's/n'}"),
+            ("Bairro", paciente.bairro),
+            ("Cidade", paciente.cidade),
+            ("Medico", medico),
+        ]
 
-        write_line()
-        write_line("Historico", negrito=True)
-        logs = sorted(paciente.logs, key=lambda item: item.criado_em or datetime.min, reverse=True)
-        for log in logs:
-            usuario = f" - {log.usuario.nome}" if log.usuario else ""
-            acao = f"{fmt_data_hora(log.criado_em)}{usuario} - {log.acao}"
-            for linha in textwrap.wrap(acao, largura_texto):
-                write_line(linha)
+        draw_card(margem_x, y_inicio_cards, card_largura, "Dados Pessoais", card1)
+        draw_card(margem_x + card_largura + gap, y_inicio_cards, card_largura, "Contato e Atendimento", card2)
 
         c.save()
         buffer.seek(0)
