@@ -6,7 +6,7 @@
   <div class="perfil__header">
     <h1>{{ paciente.nome }}</h1>
     <div class="perfil__acoes">
-      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" class="btn btn--primary" target="_blank" rel="noopener">Gerar PDF</a>
+      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" class="btn btn--primary">Gerar PDF</a>
       {% if current_user.nivel <= 1 and pode_gerenciar %}
       <a href="{{ url_for('painel.editar_paciente', pid=paciente.id) }}" class="btn btn--primary">Editar</a>
       <form method="POST" action="{{ url_for('painel.excluir_paciente', pid=paciente.id) }}"

@@ -1,15 +1,23 @@
 [phases.setup]
 aptPkgs = [
+  "libcairo-gobject2",
   "libpango-1.0-0",
+  "libpangocairo-1.0-0",
   "libpangoft2-1.0-0",
   "libharfbuzz0b",
   "libharfbuzz-subset0",
   "libfribidi0",
+  "libfontconfig1",
+  "libfreetype6",
   "libgdk-pixbuf-2.0-0",
+  "libglib2.0-0",
   "libcairo2",
   "libffi8",
   "libjpeg62-turbo",
   "libopenjp2-7",
+  "libpng16-16",
+  "zlib1g",
   "shared-mime-info",
+  "fonts-dejavu-core",
   "fonts-liberation"
 ]
