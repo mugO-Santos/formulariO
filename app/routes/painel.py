@@ -375,6 +375,21 @@ def exportar_pdf(pid):
     return response
 
 
+@bp.route("/paciente/<int:pid>/imprimir")
+@login_required
+def imprimir_paciente(pid):
+    paciente = _get_paciente_or_404(pid)
+    if paciente.excluido:
+        abort(404)
+    db.session.add(Log(
+        usuario_id=current_user.id,
+        paciente_id=pid,
+        acao="Abriu impressão via pop-up",
+    ))
+    db.session.commit()
+    return render_template("painel/print_perfil.html", paciente=paciente)
+
+
 @bp.route("/perfil", methods=["GET", "POST"])
 @login_required
 def meu_perfil():

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impressao - {{ paciente.nome }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a2e; margin: 24px; }
+    h1 { font-size: 18px; border-bottom: 2px solid #1a6fb4; padding-bottom: 6px; margin-bottom: 10px; }
+    h2 { font-size: 13px; color: #1a6fb4; margin-top: 18px; border-bottom: 1px solid #cce0f5; }
+    dl { display: grid; grid-template-columns: 170px 1fr; gap: 4px 12px; margin-top: 8px; }
+    dt { font-weight: bold; }
+    .obs { white-space: pre-wrap; }
+    .log-item { border-bottom: 1px solid #eee; padding: 3px 0; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+    .btn { border: 1px solid #1a6fb4; background: #1a6fb4; color: #fff; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+    .btn-alt { border: 1px solid #bbb; background: #fff; color: #333; }
+
+    @media print {
+      .toolbar { display: none; }
+      body { margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="btn" type="button" onclick="window.print()">Imprimir agora</button>
+    <button class="btn btn-alt" type="button" onclick="window.close()">Fechar</button>
+  </div>
+
+  <h1>{{ paciente.nome }}</h1>
+
+  <h2>Dados Pessoais</h2>
+  <dl>
+    <dt>Nome da Mae</dt><dd>{{ paciente.nome_mae }}</dd>
+    <dt>CPF</dt><dd>{{ paciente.cpf }}</dd>
+    <dt>RG</dt><dd>{{ paciente.rg or '-' }}</dd>
+    <dt>Nascimento</dt><dd>{{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</dd>
+    <dt>Estado Civil</dt><dd>{{ paciente.estado_civil }}</dd>
+    <dt>Profissao</dt><dd>{{ paciente.profissao or '-' }}</dd>
+  </dl>
+
+  <h2>Contato</h2>
+  <dl>
+    <dt>E-mail</dt><dd>{{ paciente.email or '-' }}</dd>
+    <dt>Telefone</dt><dd>{{ paciente.telefone }}</dd>
+  </dl>
+
+  <h2>Endereco</h2>
+  <dl>
+    <dt>CEP</dt><dd>{{ paciente.cep or '-' }}</dd>
+    <dt>Endereco</dt><dd>{{ paciente.endereco or '-' }}, {{ paciente.numero or 's/n' }}</dd>
+    <dt>Bairro</dt><dd>{{ paciente.bairro or '-' }}</dd>
+    <dt>Cidade</dt><dd>{{ paciente.cidade or '-' }}</dd>
+  </dl>
+
+  <h2>Medico</h2>
+  <dl>
+    <dt>Medico</dt>
+    <dd>{% if paciente.medico %}{{ paciente.medico.nome }} - CRM {{ paciente.medico.crm }}{% else %}Nao vinculado{% endif %}</dd>
+  </dl>
+
+  {% if paciente.observacoes %}
+  <h2>Observacoes</h2>
+  <p class="obs">{{ paciente.observacoes }}</p>
+  {% endif %}
+
+  <h2>Historico</h2>
+  {% for log in paciente.logs | sort(attribute='criado_em', reverse=True) %}
+  <div class="log-item">
+    {{ log.criado_em | horario_sp }}
+    {% if log.usuario %} - {{ log.usuario.nome }}{% endif %}
+    - {{ log.acao }}
+  </div>
+  {% endfor %}
+
+  <script>
+    window.addEventListener('load', function () {
+      window.print();
+    });
+  </script>
+</body>
+</html>

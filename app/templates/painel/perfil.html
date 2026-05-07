@@ -6,7 +6,8 @@
   <div class="perfil__header">
     <h1>{{ paciente.nome }}</h1>
     <div class="perfil__acoes">
-      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" target="_blank" class="btn btn--secondary">Imprimir PDF</a>
+      <button type="button" class="btn btn--secondary" onclick="abrirPopupImpressao({{ paciente.id }})">Imprimir</button>
+      <a href="{{ url_for('painel.exportar_pdf', pid=paciente.id) }}" class="btn btn--sm">PDF (opcional)</a>
       {% if current_user.nivel <= 1 and pode_gerenciar %}
       <a href="{{ url_for('painel.editar_paciente', pid=paciente.id) }}" class="btn btn--primary">Editar</a>
       <form method="POST" action="{{ url_for('painel.excluir_paciente', pid=paciente.id) }}"
@@ -131,4 +132,16 @@
     </ul>
   </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirPopupImpressao(pid) {
+  const url = "{{ url_for('painel.imprimir_paciente', pid=0) }}".replace("0", String(pid));
+  const popup = window.open(url, "impressaoPerfil", "width=1000,height=780,noopener,noreferrer");
+  if (!popup) {
+    alert("O navegador bloqueou o pop-up de impressão. Permita pop-ups para este site.");
+  }
+}
+</script>
 {% endblock %}
