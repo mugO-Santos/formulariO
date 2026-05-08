@@ -1,0 +1,79 @@
+{% extends "base_painel.html" %}
+{% block title %}Editar Agendamento{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Editar Agendamento #{{ agendamento.id }}</h1>
+
+<form method="POST" action="{{ url_for('painel.editar_agendamento', aid=agendamento.id) }}" class="agenda-painel" id="agenda-form-edit">
+  <div class="form-group">
+    <label>Selecionar Formulário (perfil existente)</label>
+    <select name="paciente_id" id="paciente_id_agenda_edit">
+      <option value="">Nenhum perfil selecionado</option>
+      {% for p in pacientes_para_agenda %}
+      <option
+        value="{{ p.id }}"
+        data-nome="{{ p.nome }}"
+        data-telefone="{{ p.telefone or '' }}"
+        data-cpf="{{ p.cpf or '' }}"
+        {% if agendamento.paciente_id == p.id %}selected{% endif %}
+      >
+        #{{ p.id }} - {{ p.nome }} {% if p.cpf %}({{ p.cpf }}){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>Nome do Paciente *</label>
+      <input type="text" name="nome_paciente" id="nome_paciente_agenda_edit" required value="{{ agendamento.paciente_nome }}" />
+    </div>
+    <div class="form-group">
+      <label>Telefone *</label>
+      <input type="text" name="telefone_paciente" id="telefone_paciente_agenda_edit" required value="{{ agendamento.paciente_telefone }}" />
+    </div>
+    <div class="form-group">
+      <label>CPF</label>
+      <input type="text" name="cpf_paciente" id="cpf_paciente_agenda_edit" value="{{ agendamento.paciente_cpf or '' }}" />
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>Data *</label>
+      <input type="date" name="data_agendamento" required value="{{ agendamento.agendado_para.strftime('%Y-%m-%d') }}" />
+    </div>
+    <div class="form-group">
+      <label>Horário *</label>
+      <input type="time" name="hora_agendamento" required value="{{ agendamento.agendado_para.strftime('%H:%M') }}" />
+    </div>
+  </div>
+
+  <details class="agenda-form__convenio" open>
+    <summary>Convênio (opcional)</summary>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nome do Convênio</label>
+        <input type="text" name="convenio_nome" value="{{ agendamento.convenio_nome or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Número da Carteirinha</label>
+        <input type="text" name="convenio_carteirinha" value="{{ agendamento.convenio_carteirinha or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Data de Validade</label>
+        <input type="date" name="convenio_validade" value="{{ agendamento.convenio_validade.strftime('%Y-%m-%d') if agendamento.convenio_validade else '' }}" />
+      </div>
+    </div>
+  </details>
+
+  <div class="agenda-card__actions">
+    <button type="submit" class="btn btn--primary">Salvar Alterações</button>
+    <a href="{{ url_for('painel.agendamentos') }}" class="btn btn--outline">Voltar</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/agendamento.js') }}"></script>
+{% endblock %}

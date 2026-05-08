@@ -49,6 +49,150 @@
 .paciente-obs { flex: 2; font-size: 0.8rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; cursor: default; }
 .page-subtitle { color: #666; font-size: 0.9rem; margin-top: -14px; margin-bottom: 20px; }
 
+.busca-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.busca-inline__input {
+  min-width: 280px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--cinza-borda);
+  border-radius: var(--radius);
+  background: var(--branco);
+}
+
+.painel-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 20px;
+  align-items: start;
+}
+
+.agenda-lateral {
+  position: sticky;
+  top: 66px;
+}
+.agenda-lateral__details {
+  background: var(--branco);
+  border-radius: var(--radius);
+  border: 1px solid #dbe8f5;
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+.agenda-lateral__summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 700;
+  color: var(--azul-escuro);
+  background: #eef5fc;
+}
+.agenda-lateral__summary::-webkit-details-marker { display: none; }
+
+.agenda-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+.agenda-form__convenio {
+  border: 1px dashed #c6d9ed;
+  border-radius: 8px;
+  padding: 8px;
+}
+.agenda-form__convenio summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--azul-escuro);
+  margin-bottom: 8px;
+}
+
+.agenda-lateral__lista {
+  border-top: 1px solid #e5edf7;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.agenda-lateral__lista h3 {
+  color: var(--azul-escuro);
+  font-size: 0.95rem;
+}
+.agenda-lateral__lista ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.agenda-lateral__lista li {
+  display: flex;
+  flex-direction: column;
+  background: #f8fbff;
+  border: 1px solid #e4eef8;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.agenda-painel {
+  background: var(--branco);
+  border-radius: var(--radius);
+  box-shadow: var(--sombra);
+  border: 1px solid #dbe8f5;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+.agenda-painel__title {
+  font-size: 1rem;
+  color: var(--azul-escuro);
+  margin-bottom: 10px;
+}
+.agenda-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.agenda-card {
+  background: var(--branco);
+  border: 1px solid #dbe8f5;
+  border-radius: var(--radius);
+  box-shadow: var(--sombra);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.agenda-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.agenda-card__header h3 {
+  font-size: 1rem;
+  color: var(--azul-escuro);
+}
+.agenda-card__data {
+  font-size: 0.8rem;
+  color: #5a6c82;
+}
+.agenda-card__body {
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+.agenda-card__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.paciente-item--agendamento-concluido {
+  border-bottom: 2px solid #b9a7ef;
+}
+
 /* ── Perfil ────────────────────────────────────────────────── */
 .perfil { max-width: 780px; }
 .perfil__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
@@ -115,3 +259,15 @@
 
 /* ── Notificações ──────────────────────────────────────────── */
 .notif-item { background: var(--azul-claro); border-radius: var(--radius); padding: 8px 12px; font-size: 0.88rem; }
+
+@media (max-width: 980px) {
+  .painel-grid {
+    grid-template-columns: 1fr;
+  }
+  .agenda-lateral {
+    position: static;
+  }
+  .busca-inline__input {
+    min-width: 100%;
+  }
+}

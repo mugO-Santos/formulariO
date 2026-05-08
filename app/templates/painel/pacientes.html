@@ -5,7 +5,21 @@
 <h1 class="page-title">Pacientes</h1>
 <p class="page-subtitle">Perfis que já passaram pela triagem e foram concluídos.</p>
 
-{% if not grupos and not pacientes_sem_medico %}
+<form method="GET" action="{{ url_for('painel.pacientes_concluidos') }}" class="busca-inline">
+  <input
+    type="search"
+    name="q"
+    value="{{ q or '' }}"
+    placeholder="Pesquisar por Nome, CPF ou ID"
+    class="busca-inline__input"
+  />
+  <button type="submit" class="btn btn--secondary btn--sm">Pesquisar</button>
+  {% if q %}
+  <a href="{{ url_for('painel.pacientes_concluidos') }}" class="btn btn--outline btn--sm">Limpar</a>
+  {% endif %}
+</form>
+
+{% if not grupos and not pacientes_sem_medico and not agendamentos_concluidos %}
   <p class="empty">Nenhum paciente concluído ainda.</p>
 {% endif %}
 
@@ -52,6 +66,27 @@
             Reabrir
           </button>
         </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if agendamentos_concluidos %}
+<section class="medico-grupo">
+  <h2 class="medico-grupo__nome">Agendamentos Concluídos</h2>
+  <ul class="paciente-lista">
+    {% for ag in agendamentos_concluidos %}
+    <li class="paciente-item paciente-item--agendamento-concluido">
+      <span>#{{ ag.id }} - {{ ag.paciente_nome }}</span>
+      <small class="hint">{{ ag.agendado_para | horario_sp }}</small>
+      <div class="paciente-item__actions">
+        {% if ag.paciente_id %}
+        <a href="{{ url_for('painel.ver_paciente', pid=ag.paciente_id) }}" target="_blank" class="btn btn--sm">Ver Perfil</a>
+        {% else %}
+        <small class="hint">Sem perfil vinculado</small>
         {% endif %}
       </div>
     </li>

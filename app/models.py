@@ -18,6 +18,7 @@ class Clinica(db.Model):
     usuarios = db.relationship("Usuario", back_populates="clinica")
     medicos = db.relationship("Medico", back_populates="clinica", foreign_keys="Medico.clinica_id")
     pacientes = db.relationship("Paciente", back_populates="clinica")
+    agendamentos = db.relationship("Agendamento", back_populates="clinica")
     encaminhamentos_recebidos = db.relationship("Encaminhamento", back_populates="clinica_destino")
     medico_responsavel = db.relationship("Medico", foreign_keys=[medico_responsavel_id], post_update=True)
 
@@ -55,6 +56,7 @@ class Usuario(UserMixin, db.Model):
     logs = db.relationship("Log", back_populates="usuario")
     notificacoes = db.relationship("Notificacao", back_populates="usuario")
     encaminhamentos_enviados = db.relationship("Encaminhamento", back_populates="enviado_por")
+    agendamentos_criados = db.relationship("Agendamento", back_populates="criado_por")
 
     @property
     def nivel(self):
@@ -133,6 +135,7 @@ class Paciente(db.Model):
 
     medico = db.relationship("Medico", back_populates="pacientes")
     clinica = db.relationship("Clinica", back_populates="pacientes")
+    agendamentos = db.relationship("Agendamento", back_populates="paciente")
     logs = db.relationship("Log", back_populates="paciente")
     encaminhamentos = db.relationship("Encaminhamento", back_populates="paciente", cascade="all, delete-orphan")
 
@@ -154,6 +157,44 @@ class Paciente(db.Model):
 
     def __repr__(self):
         return f"<Paciente {self.nome}>"
+
+
+class Agendamento(db.Model):
+    __tablename__ = "agendamentos"
+    __table_args__ = ({"sqlite_autoincrement": True},)
+
+    id = db.Column(db.Integer, primary_key=True)
+    clinica_id = db.Column(db.Integer, db.ForeignKey("clinicas.id"), nullable=True)
+    paciente_id = db.Column(db.Integer, db.ForeignKey("pacientes.id"), nullable=True)
+    criado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+
+    paciente_nome = db.Column(db.String(120), nullable=False)
+    paciente_cpf = db.Column(db.String(14), nullable=True)
+    paciente_telefone = db.Column(db.String(20), nullable=False)
+
+    convenio_nome = db.Column(db.String(120), nullable=True)
+    convenio_carteirinha = db.Column(db.String(60), nullable=True)
+    convenio_validade = db.Column(db.Date, nullable=True)
+
+    agendado_para = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default="agendado", nullable=False)
+
+    concluido_em = db.Column(db.DateTime, nullable=True)
+    excluido_em = db.Column(db.DateTime, nullable=True)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    atualizado_em = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    clinica = db.relationship("Clinica", back_populates="agendamentos")
+    paciente = db.relationship("Paciente", back_populates="agendamentos")
+    criado_por = db.relationship("Usuario", back_populates="agendamentos_criados")
+
+    def __repr__(self):
+        return f"<Agendamento id={self.id} paciente={self.paciente_nome}>"
 
 
 class Log(db.Model):

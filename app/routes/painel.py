@@ -5,10 +5,11 @@ import os
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
+from sqlalchemy import String, cast, func, or_
 from app.extensions import db
-from app.models import Clinica, Encaminhamento, Paciente, Log
+from app.models import Agendamento, Clinica, Encaminhamento, Paciente, Log
 from app.decorators import nivel_minimo
-from app.scope import pode_gerenciar_paciente, scoped_pacientes
+from app.scope import pode_gerenciar_paciente, scoped_agendamentos, scoped_pacientes
 
 bp = Blueprint("painel", __name__, url_prefix="/painel")
 
@@ -21,11 +22,56 @@ def _get_paciente_or_404(pid):
     return _paciente_query().filter(Paciente.id == pid).first_or_404()
 
 
+def _agendamento_query():
+    return scoped_agendamentos(Agendamento.query, current_user)
+
+
+def _get_agendamento_or_404(aid):
+    return _agendamento_query().filter(Agendamento.id == aid).first_or_404()
+
+
 def _requer_gerencia_paciente(paciente):
     if pode_gerenciar_paciente(current_user, paciente):
         return True
     flash("Este perfil foi compartilhado com sua clínica para consulta. Edições ficam com a clínica de origem.", "warning")
     return False
+
+
+def _filtro_busca_paciente(texto_busca):
+    filtros = [
+        Paciente.nome.ilike(f"%{texto_busca}%"),
+        Paciente.cpf.ilike(f"%{texto_busca}%"),
+    ]
+    if texto_busca.isdigit():
+        filtros.append(cast(Paciente.id, String) == texto_busca)
+    return or_(*filtros)
+
+
+def _filtro_busca_agendamento(texto_busca):
+    filtros = [
+        Agendamento.paciente_nome.ilike(f"%{texto_busca}%"),
+        Agendamento.paciente_cpf.ilike(f"%{texto_busca}%"),
+        cast(Agendamento.id, String) == texto_busca,
+    ]
+    if texto_busca.isdigit():
+        filtros.append(cast(Agendamento.paciente_id, String) == texto_busca)
+    return or_(*filtros)
+
+
+def _parse_data_hora(data_raw, hora_raw):
+    try:
+        return datetime.strptime(f"{data_raw} {hora_raw}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_data_convenio(data_raw):
+    if not data_raw:
+        return None
+    try:
+        return datetime.strptime(data_raw, "%Y-%m-%d").date()
+    except ValueError:
+        return "invalid"
 
 
 @bp.route("/")
@@ -67,10 +113,32 @@ def index():
         )
         grupos.append({"medico": m, "pacientes": pacs})
 
+    pacientes_para_agenda = (
+        scoped_pacientes(Paciente.query, current_user)
+        .filter(Paciente.excluido_em.is_(None))
+        .order_by(Paciente.nome.asc())
+        .limit(250)
+        .all()
+    )
+
+    proximos_agendamentos = (
+        _agendamento_query()
+        .filter(
+            Agendamento.status == "agendado",
+            Agendamento.excluido_em.is_(None),
+            Agendamento.concluido_em.is_(None),
+        )
+        .order_by(Agendamento.agendado_para.asc(), Agendamento.id.asc())
+        .limit(8)
+        .all()
+    )
+
     return render_template(
         "painel/index.html",
         grupos=grupos,
         pacientes_sem_medico=pacientes_sem_medico,
+        pacientes_para_agenda=pacientes_para_agenda,
+        proximos_agendamentos=proximos_agendamentos,
     )
 
 
@@ -268,10 +336,15 @@ def pacientes_concluidos():
     from app.models import Medico
     from sqlalchemy import func, select
 
+    busca = request.args.get("q", "").strip()
+
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
         Paciente.concluido_em.isnot(None),
     )
+    if busca:
+        base_pacientes = base_pacientes.filter(_filtro_busca_paciente(busca))
+
     pacientes_sem_medico = (
         base_pacientes
         .filter(Paciente.medico_id.is_(None))
@@ -300,11 +373,223 @@ def pacientes_concluidos():
         )
         grupos.append({"medico": m, "pacientes": pacs})
 
+    agendamentos_concluidos = (
+        _agendamento_query()
+        .filter(
+            Agendamento.status == "concluido",
+            Agendamento.excluido_em.is_(None),
+            Agendamento.concluido_em.isnot(None),
+        )
+    )
+    if busca:
+        agendamentos_concluidos = agendamentos_concluidos.filter(_filtro_busca_agendamento(busca))
+    agendamentos_concluidos = agendamentos_concluidos.order_by(
+        Agendamento.concluido_em.desc(),
+        Agendamento.id.desc(),
+    ).all()
+
     return render_template(
         "painel/pacientes.html",
         grupos=grupos,
         pacientes_sem_medico=pacientes_sem_medico,
+        agendamentos_concluidos=agendamentos_concluidos,
+        q=busca,
     )
+
+
+@bp.route("/agendamentos")
+@login_required
+def agendamentos():
+    busca = request.args.get("q", "").strip()
+
+    query = _agendamento_query().filter(
+        Agendamento.status == "agendado",
+        Agendamento.excluido_em.is_(None),
+        Agendamento.concluido_em.is_(None),
+    )
+    if busca:
+        query = query.filter(_filtro_busca_agendamento(busca))
+
+    agendamentos_lista = query.order_by(Agendamento.agendado_para.asc(), Agendamento.id.asc()).all()
+    pacientes_para_agenda = (
+        scoped_pacientes(Paciente.query, current_user)
+        .filter(Paciente.excluido_em.is_(None))
+        .order_by(Paciente.nome.asc())
+        .limit(250)
+        .all()
+    )
+    return render_template(
+        "painel/agendamentos.html",
+        agendamentos=agendamentos_lista,
+        pacientes_para_agenda=pacientes_para_agenda,
+        q=busca,
+    )
+
+
+@bp.route("/agendamentos/novo", methods=["POST"])
+@login_required
+@nivel_minimo(1)
+def novo_agendamento():
+    paciente_id_raw = request.form.get("paciente_id", "").strip()
+    data_agendamento = request.form.get("data_agendamento", "").strip()
+    hora_agendamento = request.form.get("hora_agendamento", "").strip()
+
+    paciente = None
+    if paciente_id_raw:
+        try:
+            paciente_id = int(paciente_id_raw)
+        except ValueError:
+            flash("Perfil selecionado é inválido.", "danger")
+            return redirect(request.referrer or url_for("painel.agendamentos"))
+        paciente = _paciente_query().filter(Paciente.id == paciente_id).first()
+        if paciente is None:
+            flash("Perfil selecionado não está disponível para sua clínica.", "danger")
+            return redirect(request.referrer or url_for("painel.agendamentos"))
+
+    nome_paciente = request.form.get("nome_paciente", "").strip() or (paciente.nome if paciente else "")
+    telefone_paciente = request.form.get("telefone_paciente", "").strip() or (paciente.telefone if paciente else "")
+    cpf_paciente = request.form.get("cpf_paciente", "").strip() or (paciente.cpf if paciente else "") or None
+
+    if not nome_paciente or not telefone_paciente:
+        flash("Nome e Telefone são obrigatórios para agendar.", "danger")
+        return redirect(request.referrer or url_for("painel.agendamentos"))
+
+    agendado_para = _parse_data_hora(data_agendamento, hora_agendamento)
+    if agendado_para is None:
+        flash("Informe data e horário válidos.", "danger")
+        return redirect(request.referrer or url_for("painel.agendamentos"))
+
+    convenio_validade = _parse_data_convenio(request.form.get("convenio_validade", "").strip())
+    if convenio_validade == "invalid":
+        flash("Data de validade do convênio inválida.", "danger")
+        return redirect(request.referrer or url_for("painel.agendamentos"))
+
+    clinica_id = current_user.clinica_id
+    if clinica_id is None and paciente is not None:
+        clinica_id = paciente.clinica_origem_id
+
+    agendamento = Agendamento(
+        clinica_id=clinica_id,
+        paciente_id=paciente.id if paciente else None,
+        criado_por_usuario_id=current_user.id,
+        paciente_nome=nome_paciente,
+        paciente_telefone=telefone_paciente,
+        paciente_cpf=cpf_paciente,
+        agendado_para=agendado_para,
+        convenio_nome=request.form.get("convenio_nome", "").strip() or None,
+        convenio_carteirinha=request.form.get("convenio_carteirinha", "").strip() or None,
+        convenio_validade=convenio_validade,
+        status="agendado",
+    )
+    db.session.add(agendamento)
+    db.session.flush()
+    db.session.add(Log(usuario_id=current_user.id, paciente_id=agendamento.paciente_id, acao=f"Criou agendamento #{agendamento.id}"))
+    db.session.commit()
+    flash(f"Agendamento #{agendamento.id} criado com sucesso.", "success")
+    return redirect(url_for("painel.agendamentos"))
+
+
+@bp.route("/agendamentos/<int:aid>/editar", methods=["GET", "POST"])
+@login_required
+@nivel_minimo(1)
+def editar_agendamento(aid):
+    agendamento = _get_agendamento_or_404(aid)
+    if agendamento.status != "agendado" or agendamento.excluido_em is not None:
+        flash("Apenas agendamentos ativos podem ser editados.", "warning")
+        return redirect(url_for("painel.agendamentos"))
+
+    if request.method == "POST":
+        paciente_id_raw = request.form.get("paciente_id", "").strip()
+        paciente = None
+        if paciente_id_raw:
+            try:
+                paciente_id = int(paciente_id_raw)
+            except ValueError:
+                flash("Perfil selecionado é inválido.", "danger")
+                return redirect(url_for("painel.editar_agendamento", aid=aid))
+            paciente = _paciente_query().filter(Paciente.id == paciente_id).first()
+            if paciente is None:
+                flash("Perfil selecionado não está disponível para sua clínica.", "danger")
+                return redirect(url_for("painel.editar_agendamento", aid=aid))
+
+        agendamento.paciente_id = paciente.id if paciente else None
+        agendamento.paciente_nome = request.form.get("nome_paciente", "").strip() or (paciente.nome if paciente else "")
+        agendamento.paciente_telefone = request.form.get("telefone_paciente", "").strip() or (paciente.telefone if paciente else "")
+        agendamento.paciente_cpf = request.form.get("cpf_paciente", "").strip() or (paciente.cpf if paciente else "") or None
+
+        if not agendamento.paciente_nome or not agendamento.paciente_telefone:
+            flash("Nome e Telefone são obrigatórios para agendar.", "danger")
+            return redirect(url_for("painel.editar_agendamento", aid=aid))
+
+        agendado_para = _parse_data_hora(
+            request.form.get("data_agendamento", "").strip(),
+            request.form.get("hora_agendamento", "").strip(),
+        )
+        if agendado_para is None:
+            flash("Informe data e horário válidos.", "danger")
+            return redirect(url_for("painel.editar_agendamento", aid=aid))
+
+        convenio_validade = _parse_data_convenio(request.form.get("convenio_validade", "").strip())
+        if convenio_validade == "invalid":
+            flash("Data de validade do convênio inválida.", "danger")
+            return redirect(url_for("painel.editar_agendamento", aid=aid))
+
+        agendamento.agendado_para = agendado_para
+        agendamento.convenio_nome = request.form.get("convenio_nome", "").strip() or None
+        agendamento.convenio_carteirinha = request.form.get("convenio_carteirinha", "").strip() or None
+        agendamento.convenio_validade = convenio_validade
+
+        db.session.add(Log(usuario_id=current_user.id, paciente_id=agendamento.paciente_id, acao=f"Editou agendamento #{agendamento.id}"))
+        db.session.commit()
+        flash(f"Agendamento #{agendamento.id} atualizado.", "success")
+        return redirect(url_for("painel.agendamentos"))
+
+    pacientes_para_agenda = (
+        scoped_pacientes(Paciente.query, current_user)
+        .filter(Paciente.excluido_em.is_(None))
+        .order_by(Paciente.nome.asc())
+        .limit(250)
+        .all()
+    )
+    return render_template(
+        "painel/editar_agendamento.html",
+        agendamento=agendamento,
+        pacientes_para_agenda=pacientes_para_agenda,
+    )
+
+
+@bp.route("/agendamentos/<int:aid>/cancelar", methods=["POST"])
+@login_required
+@nivel_minimo(1)
+def cancelar_agendamento(aid):
+    agendamento = _get_agendamento_or_404(aid)
+    if agendamento.status != "agendado" or agendamento.excluido_em is not None:
+        flash("Agendamento já está encerrado.", "warning")
+        return redirect(url_for("painel.agendamentos"))
+
+    agendamento.status = "cancelado"
+    agendamento.excluido_em = datetime.now(timezone.utc)
+    db.session.add(Log(usuario_id=current_user.id, paciente_id=agendamento.paciente_id, acao=f"Cancelou agendamento #{agendamento.id}"))
+    db.session.commit()
+    flash(f"Agendamento #{agendamento.id} cancelado.", "info")
+    return redirect(url_for("painel.agendamentos"))
+
+
+@bp.route("/agendamentos/<int:aid>/concluir", methods=["POST"])
+@login_required
+@nivel_minimo(1)
+def concluir_agendamento(aid):
+    agendamento = _get_agendamento_or_404(aid)
+    if agendamento.status != "agendado" or agendamento.excluido_em is not None:
+        flash("Agendamento já está encerrado.", "warning")
+        return redirect(url_for("painel.agendamentos"))
+
+    agendamento.status = "concluido"
+    agendamento.concluido_em = datetime.now(timezone.utc)
+    db.session.add(Log(usuario_id=current_user.id, paciente_id=agendamento.paciente_id, acao=f"Concluiu agendamento #{agendamento.id}"))
+    db.session.commit()
+    flash(f"Agendamento #{agendamento.id} marcado como concluído.", "success")
+    return redirect(url_for("painel.pacientes_concluidos"))
 
 
 @bp.route("/excluidos")

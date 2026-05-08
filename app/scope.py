@@ -1,7 +1,7 @@
 from sqlalchemy import and_, false, or_
 
 from .extensions import db
-from .models import Encaminhamento, Log, Medico, Paciente, Usuario
+from .models import Agendamento, Encaminhamento, Log, Medico, Paciente, Usuario
 
 
 def clinica_escopo_id(usuario):
@@ -83,6 +83,15 @@ def scoped_logs(query, usuario):
             )
         )
     )
+
+
+def scoped_agendamentos(query, usuario):
+    if usuario_sem_escopo(usuario):
+        return query.filter(false())
+    clinica_id = clinica_escopo_id(usuario)
+    if clinica_id is None:
+        return query
+    return query.filter(Agendamento.clinica_id == clinica_id)
 
 
 def pode_acessar_medico(usuario, medico):

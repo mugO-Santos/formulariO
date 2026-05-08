@@ -4,6 +4,9 @@
 {% block content %}
 <h1 class="page-title">Pacientes</h1>
 
+<div class="painel-grid">
+  <section>
+
 {% for grupo in grupos %}
   <section class="medico-grupo">
     <h2 class="medico-grupo__nome">{{ grupo.medico.nome }} <span class="crm">CRM {{ grupo.medico.crm }}</span></h2>
@@ -60,4 +63,99 @@
   </ul>
 </section>
 {% endif %}
+
+  </section>
+
+  <aside class="agenda-lateral">
+    <details class="agenda-lateral__details">
+      <summary class="agenda-lateral__summary">Agenda</summary>
+
+      <form method="POST" action="{{ url_for('painel.novo_agendamento') }}" class="agenda-form" id="agenda-form">
+        <div class="form-group">
+          <label>Selecionar Formulário (perfil existente)</label>
+          <select name="paciente_id" id="paciente_id_agenda">
+            <option value="">Nenhum perfil selecionado</option>
+            {% for p in pacientes_para_agenda %}
+            <option
+              value="{{ p.id }}"
+              data-nome="{{ p.nome }}"
+              data-telefone="{{ p.telefone or '' }}"
+              data-cpf="{{ p.cpf or '' }}"
+            >
+              #{{ p.id }} - {{ p.nome }} {% if p.cpf %}({{ p.cpf }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Nome do Paciente *</label>
+          <input type="text" name="nome_paciente" id="nome_paciente_agenda" required />
+        </div>
+        <div class="form-group">
+          <label>Telefone *</label>
+          <input type="text" name="telefone_paciente" id="telefone_paciente_agenda" required />
+        </div>
+        <div class="form-group">
+          <label>CPF</label>
+          <input type="text" name="cpf_paciente" id="cpf_paciente_agenda" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Data *</label>
+            <input type="date" name="data_agendamento" required />
+          </div>
+          <div class="form-group">
+            <label>Horário *</label>
+            <input type="time" name="hora_agendamento" required />
+          </div>
+        </div>
+
+        <details class="agenda-form__convenio">
+          <summary>Convênio (opcional)</summary>
+          <div class="form-group">
+            <label>Nome do Convênio</label>
+            <input type="text" name="convenio_nome" />
+          </div>
+          <div class="form-group">
+            <label>Número da Carteirinha</label>
+            <input type="text" name="convenio_carteirinha" />
+          </div>
+          <div class="form-group">
+            <label>Data de Validade</label>
+            <input type="date" name="convenio_validade" />
+          </div>
+        </details>
+
+        {% if current_user.nivel <= 1 %}
+        <button type="submit" class="btn btn--primary btn--full">Criar Agendamento</button>
+        {% else %}
+        <p class="hint">Apenas níveis 0 e 1 podem criar agendamentos.</p>
+        {% endif %}
+      </form>
+
+      <div class="agenda-lateral__lista">
+        <h3>Próximos</h3>
+        {% if proximos_agendamentos %}
+        <ul>
+          {% for ag in proximos_agendamentos %}
+          <li>
+            <strong>#{{ ag.id }}</strong> {{ ag.paciente_nome }}
+            <small>{{ ag.agendado_para | horario_sp }}</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">Nenhum agendamento ativo.</p>
+        {% endif %}
+        <a href="{{ url_for('painel.agendamentos') }}" class="btn btn--outline btn--sm">Ver todos</a>
+      </div>
+    </details>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/agendamento.js') }}"></script>
 {% endblock %}
