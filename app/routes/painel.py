@@ -422,12 +422,17 @@ def exportar_pdf(pid):
         c.drawString(margem_x + 16, topo - 54, f"Emitido em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
         y_inicio_cards = topo - 92
-        # Logo e nome da clínica
+        # Logo e nome da clínica com fallback para registros antigos sem clinica_id.
         clinica = paciente.clinica
-        logo_desenhado = False
+        if clinica is None and paciente.medico is not None:
+            clinica = paciente.medico.clinica
+        if clinica is None and current_user.clinica is not None:
+            clinica = current_user.clinica
+
         if clinica and clinica.logo_path:
             from flask import current_app
-            logo_abs = os.path.join(current_app.static_folder, clinica.logo_path)
+            logo_rel = clinica.logo_path.lstrip("/\\")
+            logo_abs = os.path.join(current_app.static_folder, logo_rel)
             if os.path.isfile(logo_abs):
                 try:
                     from reportlab.lib.utils import ImageReader
@@ -440,7 +445,6 @@ def exportar_pdf(pid):
                     ix = margem_x + area_largura - dw - 10
                     iy = topo - 12 - dh
                     c.drawImage(logo_abs, ix, iy, width=dw, height=dh, mask="auto")
-                    logo_desenhado = True
                 except Exception:
                     pass
         if clinica and (clinica.nome_impresso or clinica.nome):
