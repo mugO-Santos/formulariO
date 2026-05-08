@@ -433,6 +433,10 @@ def exportar_pdf(pid):
             from flask import current_app
             logo_rel = clinica.logo_path.lstrip("/\\")
             logo_abs = os.path.join(current_app.static_folder, logo_rel)
+            current_app.logger.warning(
+                "PDF logo debug: clinica=%s logo_path=%s logo_abs=%s exists=%s",
+                clinica.id, clinica.logo_path, logo_abs, os.path.isfile(logo_abs),
+            )
             if os.path.isfile(logo_abs):
                 try:
                     from reportlab.lib.utils import ImageReader
@@ -441,12 +445,11 @@ def exportar_pdf(pid):
                     max_w, max_h = 100, 40
                     escala = min(max_w / iw, max_h / ih, 1.0)
                     dw, dh = iw * escala, ih * escala
-                    # posição: canto superior direito do header
                     ix = margem_x + area_largura - dw - 10
                     iy = topo - 12 - dh
                     c.drawImage(logo_abs, ix, iy, width=dw, height=dh, mask="auto")
-                except Exception:
-                    pass
+                except Exception as exc:
+                    current_app.logger.warning("PDF logo draw error: %s", exc)
         if clinica and (clinica.nome_impresso or clinica.nome):
             nome_clinica = clinica.nome_impresso or clinica.nome
             # Texto abaixo do header, alinhado à direita
