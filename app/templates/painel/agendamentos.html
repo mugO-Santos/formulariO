@@ -132,6 +132,30 @@
 {% else %}
 <p class="empty">Nenhum agendamento ativo encontrado.</p>
 {% endif %}
+
+{% if total_paginas > 1 %}
+<nav class="paginacao">
+  {% if pagina > 1 %}
+  <a href="{{ url_for('painel.agendamentos', q=q or '', pagina=pagina-1) }}" class="btn btn--outline btn--sm">← Anterior</a>
+  {% endif %}
+
+  {% for p in range(1, total_paginas + 1) %}
+    {% if p == pagina %}
+    <span class="paginacao__atual">{{ p }}</span>
+    {% elif p == 1 or p == total_paginas or (p >= pagina - 2 and p <= pagina + 2) %}
+    <a href="{{ url_for('painel.agendamentos', q=q or '', pagina=p) }}" class="btn btn--outline btn--sm">{{ p }}</a>
+    {% elif p == pagina - 3 or p == pagina + 3 %}
+    <span class="paginacao__ellipsis">…</span>
+    {% endif %}
+  {% endfor %}
+
+  {% if pagina < total_paginas %}
+  <a href="{{ url_for('painel.agendamentos', q=q or '', pagina=pagina+1) }}" class="btn btn--outline btn--sm">Próximo →</a>
+  {% endif %}
+
+  <span class="paginacao__info">{{ total }} agendamento{{ 's' if total != 1 else '' }}</span>
+</nav>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

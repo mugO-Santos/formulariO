@@ -397,10 +397,17 @@ def pacientes_concluidos():
     )
 
 
+_AGENDA_POR_PAGINA = 15
+
+
 @bp.route("/agendamentos")
 @login_required
 def agendamentos():
     busca = request.args.get("q", "").strip()
+    try:
+        pagina = max(1, int(request.args.get("pagina", 1)))
+    except (TypeError, ValueError):
+        pagina = 1
 
     query = _agendamento_query().filter(
         Agendamento.status == "agendado",
@@ -410,7 +417,12 @@ def agendamentos():
     if busca:
         query = query.filter(_filtro_busca_agendamento(busca))
 
-    agendamentos_lista = query.order_by(Agendamento.agendado_para.asc(), Agendamento.id.asc()).all()
+    query = query.order_by(Agendamento.agendado_para.asc(), Agendamento.id.asc())
+    total = query.count()
+    total_paginas = max(1, -(-total // _AGENDA_POR_PAGINA))  # ceil sem import
+    pagina = min(pagina, total_paginas)
+    agendamentos_lista = query.offset((pagina - 1) * _AGENDA_POR_PAGINA).limit(_AGENDA_POR_PAGINA).all()
+
     pacientes_para_agenda = (
         scoped_pacientes(Paciente.query, current_user)
         .filter(Paciente.excluido_em.is_(None))
@@ -423,6 +435,9 @@ def agendamentos():
         agendamentos=agendamentos_lista,
         pacientes_para_agenda=pacientes_para_agenda,
         q=busca,
+        pagina=pagina,
+        total_paginas=total_paginas,
+        total=total,
     )
 
 

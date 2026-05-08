@@ -260,6 +260,32 @@
 /* ── Notificações ──────────────────────────────────────────── */
 .notif-item { background: var(--azul-claro); border-radius: var(--radius); padding: 8px 12px; font-size: 0.88rem; }
 
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+}
+.paginacao__atual {
+  padding: 5px 12px;
+  background: var(--azul);
+  color: var(--branco);
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.paginacao__ellipsis {
+  color: #aaa;
+  font-size: 0.9rem;
+  padding: 0 4px;
+}
+.paginacao__info {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: #777;
+}
+
 @media (max-width: 980px) {
   .painel-grid {
     grid-template-columns: 1fr;
