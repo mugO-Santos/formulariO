@@ -149,6 +149,11 @@
         <button type="submit" class="btn btn--primary">Salvar Configurações</button>
       </form>
 
+      <hr style="margin: 16px 0; border-color: #e2e8f0;">
+      <h3 style="font-size: 0.95rem; margin-bottom: 8px;">Formulário em Branco</h3>
+      <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 10px;">Gera um PDF do formulário vazio para preenchimento manual.</p>
+      <a href="{{ url_for('painel.formulario_em_branco_pdf') }}" class="btn btn--primary" target="_blank">Gerar Formulário PDF</a>
+
       <button class="modal__close" onclick="closeModal('modal-configuracoes')">✕</button>
     </div>
   </div>

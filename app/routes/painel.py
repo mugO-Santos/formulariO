@@ -759,34 +759,137 @@ def exportar_pdf(pid):
             tw = c.stringWidth(label, "Helvetica-Bold", 8)
             c.drawString(margem_x + area_largura - tw - 10, topo - 78, label)
 
-        gap = 14
-        card_largura = (area_largura - gap) / 2
-
         medico = "Nao vinculado"
         if paciente.medico:
             medico = f"{paciente.medico.nome} - CRM {paciente.medico.crm}"
 
-        card1 = [
-            ("Nome", paciente.nome),
-            ("Nome da Mae", paciente.nome_mae),
-            ("CPF", paciente.cpf),
-            ("RG", paciente.rg),
-            ("Nascimento", fmt_data(paciente.data_nascimento)),
-            ("Estado Civil", paciente.estado_civil),
-            ("Profissao", paciente.profissao),
-        ]
-        card2 = [
-            ("Telefone", paciente.telefone),
-            ("E-mail", paciente.email),
-            ("CEP", paciente.cep),
-            ("Endereco", f"{clean(paciente.endereco)}, {clean(paciente.numero) if paciente.numero else 's/n'}"),
-            ("Bairro", paciente.bairro),
-            ("Cidade", paciente.cidade),
-            ("Medico", medico),
-        ]
+        # ── Ficha de Atendimento (estilo cartão físico para impressão) ────────
+        ficha_x = margem_x
+        ficha_w = area_largura
+        linha_h = 20
+        pad_x = 8
+        fsize = 8
 
-        draw_card(margem_x, y_inicio_cards, card_largura, "Dados Pessoais", card1)
-        draw_card(margem_x + card_largura + gap, y_inicio_cards, card_largura, "Contato e Atendimento", card2)
+        y_ficha_topo = y_inicio_cards - 10
+
+        # Calcula altura total da ficha: título + 10 linhas de dados + 3 extras medicamentos + 1 anotações + 8 linhas
+        ficha_h = 26 + 13 * linha_h + 10 + linha_h + 8 * linha_h
+
+        # Verifica se cabe na página; se não, cria nova página
+        if y_ficha_topo - ficha_h < margem_y:
+            c.showPage()
+            y_ficha_topo = altura - margem_y
+
+        # Borda externa
+        c.setStrokeColor(colors.HexColor("#AAAAAA"))
+        c.setLineWidth(0.5)
+        c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
+
+        # Título da ficha
+        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.rect(ficha_x, y_ficha_topo - 26, ficha_w, 26, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(ficha_x + pad_x, y_ficha_topo - 18, "Ficha de Atendimento")
+
+        y = y_ficha_topo - 26 - linha_h + 4
+
+        def linha_sep(y_pos):
+            c.setStrokeColor(colors.HexColor("#CCCCCC"))
+            c.setLineWidth(0.4)
+            c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
+
+        def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None):
+            """Desenha label: valor — ou sublinhado tracejado se vazio."""
+            c.setFillColor(cor_label or colors.HexColor("#1a1a2e"))
+            c.setFont("Helvetica-Bold", fsize)
+            c.drawString(x + pad_x, y_pos, f"{label}:")
+            lw = c.stringWidth(f"{label}:", "Helvetica-Bold", fsize)
+            val_x = x + pad_x + lw + 3
+            available = col_end - val_x - pad_x
+            if valor:
+                c.setFillColor(colors.HexColor("#0F172A"))
+                c.setFont("Helvetica", fsize)
+                txt = valor
+                while c.stringWidth(txt, "Helvetica", fsize) > available and len(txt) > 1:
+                    txt = txt[:-1]
+                if txt != valor:
+                    txt = txt[:-1] + "…"
+                c.drawString(val_x, y_pos, txt)
+            else:
+                c.setStrokeColor(colors.HexColor("#BBBBBB"))
+                c.setLineWidth(0.5)
+                c.line(val_x, y_pos - 1, col_end - pad_x, y_pos - 1)
+
+        mid = ficha_x + ficha_w / 2
+        t1  = ficha_x + ficha_w / 3
+        t2  = ficha_x + 2 * ficha_w / 3
+        end = ficha_x + ficha_w
+
+        # Linha 1: NOME | CONVÊNIO (branco)
+        campo_ficha(ficha_x, y, "NOME",     clean(paciente.nome), mid)
+        campo_ficha(mid,      y, "CONVÊNIO", "",                   end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 2: Endereço
+        end_str = f"{paciente.endereco}, {paciente.numero or 's/n'}" if paciente.endereco else ""
+        campo_ficha(ficha_x, y, "End", end_str, end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 3: Bairro | Cidade | CEP
+        campo_ficha(ficha_x, y, "Bairro", paciente.bairro or "", t1)
+        campo_ficha(t1,       y, "Cidade",  paciente.cidade  or "", t2)
+        campo_ficha(t2,       y, "CEP",     paciente.cep     or "", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 4: Tel.Res | Cel (branco)
+        campo_ficha(ficha_x, y, "Tel.Res", paciente.telefone or "", mid)
+        campo_ficha(mid,      y, "Cel",    "",                       end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 5: RG | Data Nascimento | Idade (branco)
+        campo_ficha(ficha_x, y, "RG",               paciente.rg or "",               t1)
+        campo_ficha(t1,       y, "Data Nascimento",  fmt_data(paciente.data_nascimento), t2)
+        campo_ficha(t2,       y, "Idade",            "",                               end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 6: CPF | Profissão
+        campo_ficha(ficha_x, y, "CPF",      paciente.cpf       or "", mid)
+        campo_ficha(mid,      y, "Profissão", paciente.profissao or "", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 7: Indicação (branco) | Est. Civil
+        campo_ficha(ficha_x, y, "Indicação", "",                          mid)
+        campo_ficha(mid,      y, "Est. Civil", paciente.estado_civil or "", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 8: Data da primeira consulta (branco) | E-mail
+        campo_ficha(ficha_x, y, "Data da primeira consulta", "", mid)
+        campo_ficha(mid,      y, "E-mail", paciente.email or "",  end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 9: Nome da Mãe
+        campo_ficha(ficha_x, y, "Nome da Mãe", paciente.nome_mae or "", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 10: Faz uso de algum medicamento (rótulo vermelho, campo branco)
+        campo_ficha(ficha_x, y, "Faz uso de algum medicamento", "",
+                    end, cor_label=colors.HexColor("#CC0000"))
+        linha_sep(y - 6); y -= linha_h
+
+        # Linhas em branco extras para medicamentos
+        for _ in range(3):
+            linha_sep(y - 6)
+            y -= linha_h
+
+        # Linha Anotações (rótulo azul escuro)
+        campo_ficha(ficha_x, y, "Anotações", "", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # 8 linhas em branco para anotações manuais
+        for _ in range(8):
+            linha_sep(y - 6)
+            y -= linha_h
 
         c.save()
         buffer.seek(0)
@@ -799,6 +902,193 @@ def exportar_pdf(pid):
     response.headers["Content-Disposition"] = (
         f"attachment; filename=paciente_{paciente.id}.pdf"
     )
+    return response
+
+
+@bp.route("/formulario-em-branco/pdf")
+@login_required
+@nivel_minimo(0)
+def formulario_em_branco_pdf():
+    """Gera PDF do formulário de cadastro em branco para preenchimento manual."""
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors
+    except ImportError:
+        flash("Dependência ReportLab não encontrada.", "danger")
+        return redirect(url_for("painel.index"))
+
+    buffer = BytesIO()
+    try:
+        c = canvas.Canvas(buffer, pagesize=A4)
+        largura, altura = A4
+        margem_x = 36
+        margem_y = 36
+        area_largura = largura - (margem_x * 2)
+        topo = altura - margem_y
+
+        fsize = 8
+        linha_h = 20
+        pad_x = 8
+        ficha_x = margem_x
+        ficha_w = area_largura
+
+        # Header
+        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.roundRect(margem_x, topo - 70, area_largura, 58, 12, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(margem_x + 16, topo - 36, "Formulário de Cadastro de Paciente")
+        c.setFont("Helvetica", 10)
+        c.drawString(margem_x + 16, topo - 54, "Preencha com letra legível")
+
+        # Logo/nome da clínica
+        clinica = current_user.clinica
+        if clinica:
+            if clinica.logo_path:
+                import os as _os
+                from flask import current_app
+                logo_abs = _os.path.join(current_app.static_folder, clinica.logo_path.lstrip("/\\"))
+                if _os.path.isfile(logo_abs):
+                    try:
+                        from reportlab.lib.utils import ImageReader
+                        img = ImageReader(logo_abs)
+                        iw, ih = img.getSize()
+                        escala = min(100 / iw, 40 / ih, 1.0)
+                        dw, dh = iw * escala, ih * escala
+                        c.drawImage(logo_abs, margem_x + area_largura - dw - 10, topo - 12 - dh,
+                                    width=dw, height=dh, mask="auto")
+                    except Exception:
+                        pass
+            nome_clinica = clinica.nome_impresso or clinica.nome
+            c.setFillColor(colors.HexColor("#0B3A5B"))
+            c.setFont("Helvetica-Bold", 8)
+            label = nome_clinica[:50]
+            tw = c.stringWidth(label, "Helvetica-Bold", 8)
+            c.drawString(margem_x + area_largura - tw - 10, topo - 78, label)
+
+        def linha_sep(y_pos):
+            c.setStrokeColor(colors.HexColor("#CCCCCC"))
+            c.setLineWidth(0.4)
+            c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
+
+        def campo(x, y_pos, label, col_end):
+            c.setFillColor(colors.HexColor("#1a1a2e"))
+            c.setFont("Helvetica-Bold", fsize)
+            c.drawString(x + pad_x, y_pos, f"{label}:")
+            lw = c.stringWidth(f"{label}:", "Helvetica-Bold", fsize)
+            val_x = x + pad_x + lw + 3
+            c.setStrokeColor(colors.HexColor("#BBBBBB"))
+            c.setLineWidth(0.5)
+            c.line(val_x, y_pos - 1, col_end - pad_x, y_pos - 1)
+
+        y_ficha_topo = topo - 92
+        ficha_h = 26 + 17 * linha_h + 10 + linha_h + 8 * linha_h
+
+        # Borda externa
+        c.setStrokeColor(colors.HexColor("#AAAAAA"))
+        c.setLineWidth(0.5)
+        c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
+
+        # Título
+        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.rect(ficha_x, y_ficha_topo - 26, ficha_w, 26, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(ficha_x + pad_x, y_ficha_topo - 18, "Ficha de Atendimento")
+
+        y = y_ficha_topo - 26 - linha_h + 4
+        mid = ficha_x + ficha_w / 2
+        t1  = ficha_x + ficha_w / 3
+        t2  = ficha_x + 2 * ficha_w / 3
+        end = ficha_x + ficha_w
+
+        # Linha 1: NOME | MÃE
+        campo(ficha_x, y, "NOME",   mid)
+        campo(mid,      y, "Mãe",   end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 2: Endereço
+        campo(ficha_x, y, "End", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 3: Bairro | Cidade | CEP
+        campo(ficha_x, y, "Bairro", t1)
+        campo(t1,       y, "Cidade", t2)
+        campo(t2,       y, "CEP",    end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 4: Tel.Res | Cel
+        campo(ficha_x, y, "Tel.Res", mid)
+        campo(mid,      y, "Cel",    end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 5: RG | Data Nascimento | Idade
+        campo(ficha_x, y, "RG",              t1)
+        campo(t1,       y, "Data Nascimento", t2)
+        campo(t2,       y, "Idade",           end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 6: CPF | Profissão
+        campo(ficha_x, y, "CPF",      mid)
+        campo(mid,      y, "Profissão", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 7: Indicação | Est. Civil
+        campo(ficha_x, y, "Indicação",  mid)
+        campo(mid,      y, "Est. Civil", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 8: Data primeira consulta | E-mail
+        campo(ficha_x, y, "Data da primeira consulta", mid)
+        campo(mid,      y, "E-mail",                   end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 9: Convênio | N° | Validade
+        campo(ficha_x, y, "Convênio", t1)
+        campo(t1,       y, "N°",       t2)
+        campo(t2,       y, "Validade", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 10: CONVÊNIO (ficha) | Médico
+        campo(ficha_x, y, "CONVÊNIO", mid)
+        campo(mid,      y, "Médico",   end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 11: Faz uso de algum medicamento
+        c.setFillColor(colors.HexColor("#CC0000"))
+        c.setFont("Helvetica-Bold", fsize)
+        label_med = "Faz uso de algum medicamento:"
+        c.drawString(ficha_x + pad_x, y, label_med)
+        lw2 = c.stringWidth(label_med, "Helvetica-Bold", fsize)
+        c.setStrokeColor(colors.HexColor("#BBBBBB"))
+        c.setLineWidth(0.5)
+        c.line(ficha_x + pad_x + lw2 + 3, y - 1, end - pad_x, y - 1)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linhas extras para medicamentos
+        for _ in range(3):
+            linha_sep(y - 6)
+            y -= linha_h
+
+        # Anotações
+        campo(ficha_x, y, "Anotações", end)
+        linha_sep(y - 6); y -= linha_h
+
+        # 8 linhas em branco
+        for _ in range(8):
+            linha_sep(y - 6)
+            y -= linha_h
+
+        c.save()
+        buffer.seek(0)
+    except Exception:
+        flash("Falha ao gerar PDF do formulário em branco.", "danger")
+        return redirect(url_for("painel.index"))
+
+    response = make_response(buffer.getvalue())
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=formulario_em_branco.pdf"
     return response
 
 

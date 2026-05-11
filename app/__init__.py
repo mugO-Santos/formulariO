@@ -205,6 +205,9 @@ def _ensure_runtime_schema_updates():
     _ensure_column(inspector, "clinicas", "eh_hospital", "BOOLEAN DEFAULT FALSE")
     _ensure_column(inspector, "clinicas", "logo_path", "VARCHAR(256)")
     _ensure_column(inspector, "clinicas", "nome_impresso", "VARCHAR(120)")
+    _ensure_column(inspector, "pacientes", "convenio_nome", "VARCHAR(120)")
+    _ensure_column(inspector, "pacientes", "convenio_numero", "VARCHAR(60)")
+    _ensure_column(inspector, "pacientes", "convenio_validade", "DATE")
 
     if "pacientes" in table_names:
         colunas_pacientes = {col["name"] for col in inspector.get_columns("pacientes")}
