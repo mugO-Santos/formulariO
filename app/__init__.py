@@ -1,6 +1,7 @@
 import os
 import re
 import ssl
+import secrets
 import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -38,7 +39,7 @@ def create_app():
         return {"status": "ok"}, 200
 
     # ── Configuração ──────────────────────────────────────────────
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or secrets.token_urlsafe(48)
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///formulario.db")
     _engine_options = {
         "pool_pre_ping": True,
@@ -75,6 +76,8 @@ def create_app():
 
     if not app.debug:
         app.logger.setLevel(logging.INFO)
+    if not os.environ.get("SECRET_KEY"):
+        app.logger.warning("SECRET_KEY nao definido; usando chave efemera para esta execucao.")
 
     def log_sqlalchemy_error(exception_context):
         app.logger.exception(
@@ -158,7 +161,11 @@ def _seed_admin():
     db.session.commit()
 
     admin_nome = os.environ.get("ADMIN_USER", "admin")
-    admin_senha = os.environ.get("ADMIN_PASS", "admin123")
+    admin_senha = os.environ.get("ADMIN_PASS")
+
+    if not admin_senha:
+        # Evita credenciais fixas em producao quando ADMIN_PASS nao foi configurada.
+        admin_senha = secrets.token_urlsafe(16)
 
     if not Usuario.query.filter_by(nome=admin_nome).first():
         cargo_admin = Cargo.query.filter_by(nivel=0).first()
@@ -171,6 +178,10 @@ def _seed_admin():
             )
         )
         db.session.commit()
+        if not os.environ.get("ADMIN_PASS"):
+            logging.getLogger(__name__).warning(
+                "ADMIN_PASS nao definida; admin inicial criado com senha aleatoria para seguranca."
+            )
 
     admin = Usuario.query.filter_by(nome=admin_nome).first()
     if admin and not admin.is_superadmin:

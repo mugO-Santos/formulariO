@@ -71,7 +71,9 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Acesse `http://localhost:5000` — login padrão: `admin` / `admin123` (conforme `.env`).
+Acesse `http://localhost:5000` e entre com as credenciais definidas no seu `.env`.
+
+Em produção no Railway, não use arquivo `.env`: configure `SECRET_KEY`, `DATABASE_URL`, `ADMIN_USER` e `ADMIN_PASS` diretamente em **Variables** do projeto.
 
 ---
 
