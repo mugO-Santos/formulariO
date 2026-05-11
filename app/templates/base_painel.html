@@ -36,7 +36,7 @@
       <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
       {% endif %}
 
-      {% if current_user.nivel == 0 and current_user.clinica %}
+      {% if current_user.nivel == 0 or current_user.is_superadmin %}
       <button class="nav-btn" onclick="openModal('modal-configuracoes')">Configurações</button>
       {% endif %}
 
@@ -114,13 +114,14 @@
   </div>
   {% endif %}
 
-  {% if current_user.nivel == 0 and current_user.clinica %}
+  {% if current_user.nivel == 0 or current_user.is_superadmin %}
   <!-- Modal Configurações -->
   <div id="modal-configuracoes" class="modal hidden">
     <div class="modal__box modal__box--config">
       <h2>Configurações da Clínica</h2>
       <p class="modal__hint">A imagem e o nome abaixo aparecem no cabeçalho do PDF dos pacientes desta clínica.</p>
 
+      {% if current_user.clinica %}
       {% if current_user.clinica.logo_path %}
       <div class="config-clinica__preview">
         <img src="{{ url_for('static', filename=current_user.clinica.logo_path) }}"
@@ -148,6 +149,9 @@
         </div>
         <button type="submit" class="btn btn--primary">Salvar Configurações</button>
       </form>
+      {% else %}
+      <p class="modal__hint">Você está em modo global. Selecione uma clínica para editar logo e nome de impressão.</p>
+      {% endif %}
 
       <hr style="margin: 16px 0; border-color: #e2e8f0;">
       <h3 style="font-size: 0.95rem; margin-bottom: 8px;">Formulário em Branco</h3>
