@@ -713,7 +713,7 @@ def exportar_pdf(pid):
             return card_altura
 
         # Header visual
-        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.setFillColor(colors.HexColor("#4A9ACB"))
         c.roundRect(margem_x, topo - 70, area_largura, 58, 12, fill=1, stroke=0)
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 16)
@@ -753,7 +753,7 @@ def exportar_pdf(pid):
         if clinica and (clinica.nome_impresso or clinica.nome):
             nome_clinica = clinica.nome_impresso or clinica.nome
             # Texto abaixo do header, alinhado à direita
-            c.setFillColor(colors.HexColor("#0B3A5B"))
+            c.setFillColor(colors.HexColor("#4A9ACB"))
             c.setFont("Helvetica-Bold", 8)
             label = nome_clinica[:50]
             tw = c.stringWidth(label, "Helvetica-Bold", 8)
@@ -766,9 +766,9 @@ def exportar_pdf(pid):
         # ── Ficha de Atendimento (estilo cartão físico para impressão) ────────
         ficha_x = margem_x
         ficha_w = area_largura
-        linha_h = 20
+        linha_h = 22
         pad_x = 8
-        fsize = 8
+        fsize = 10
 
         y_ficha_topo = y_inicio_cards - 10
 
@@ -781,22 +781,22 @@ def exportar_pdf(pid):
             y_ficha_topo = altura - margem_y
 
         # Borda externa
-        c.setStrokeColor(colors.HexColor("#AAAAAA"))
-        c.setLineWidth(0.5)
+        c.setStrokeColor(colors.HexColor("#111111"))
+        c.setLineWidth(0.9)
         c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
 
         # Título da ficha
-        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.setFillColor(colors.HexColor("#4A9ACB"))
         c.rect(ficha_x, y_ficha_topo - 26, ficha_w, 26, fill=1, stroke=0)
         c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 10)
+        c.setFont("Helvetica-Bold", 11)
         c.drawString(ficha_x + pad_x, y_ficha_topo - 18, "Ficha de Atendimento")
 
         y = y_ficha_topo - 26 - linha_h + 4
 
         def linha_sep(y_pos):
-            c.setStrokeColor(colors.HexColor("#CCCCCC"))
-            c.setLineWidth(0.4)
+            c.setStrokeColor(colors.HexColor("#111111"))
+            c.setLineWidth(0.8)
             c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
 
         def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None):
@@ -817,8 +817,8 @@ def exportar_pdf(pid):
                     txt = txt[:-1] + "…"
                 c.drawString(val_x, y_pos, txt)
             else:
-                c.setStrokeColor(colors.HexColor("#BBBBBB"))
-                c.setLineWidth(0.5)
+                c.setStrokeColor(colors.HexColor("#111111"))
+                c.setLineWidth(0.8)
                 c.line(val_x, y_pos - 1, col_end - pad_x, y_pos - 1)
 
         mid = ficha_x + ficha_w / 2
@@ -826,9 +826,9 @@ def exportar_pdf(pid):
         t2  = ficha_x + 2 * ficha_w / 3
         end = ficha_x + ficha_w
 
-        # Linha 1: NOME | CONVÊNIO (branco)
-        campo_ficha(ficha_x, y, "NOME",     clean(paciente.nome), mid)
-        campo_ficha(mid,      y, "CONVÊNIO", "",                   end)
+        # Linha 1: NOME | Mãe
+        campo_ficha(ficha_x, y, "NOME", clean(paciente.nome), mid)
+        campo_ficha(mid, y, "Mãe", clean(paciente.nome_mae), end)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 2: Endereço
@@ -868,11 +868,17 @@ def exportar_pdf(pid):
         campo_ficha(mid,      y, "E-mail", paciente.email or "",  end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 9: Nome da Mãe
-        campo_ficha(ficha_x, y, "Nome da Mãe", paciente.nome_mae or "", end)
+        # Linha 9: Convênio | N° | Validade
+        campo_ficha(ficha_x, y, "Convênio", paciente.convenio_nome or "", t1)
+        campo_ficha(t1, y, "N°", paciente.convenio_numero or "", t2)
+        campo_ficha(t2, y, "Validade", fmt_data(paciente.convenio_validade), end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 10: Faz uso de algum medicamento (rótulo vermelho, campo branco)
+        # Linha 10: Médico
+        campo_ficha(ficha_x, y, "Médico", medico, end)
+        linha_sep(y - 6); y -= linha_h
+
+        # Linha 11: Faz uso de algum medicamento (rótulo vermelho, campo branco)
         campo_ficha(ficha_x, y, "Faz uso de algum medicamento", "",
                     end, cor_label=colors.HexColor("#CC0000"))
         linha_sep(y - 6); y -= linha_h
@@ -927,14 +933,14 @@ def formulario_em_branco_pdf():
         area_largura = largura - (margem_x * 2)
         topo = altura - margem_y
 
-        fsize = 8
-        linha_h = 20
+        fsize = 10
+        linha_h = 22
         pad_x = 8
         ficha_x = margem_x
         ficha_w = area_largura
 
         # Header
-        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.setFillColor(colors.HexColor("#4A9ACB"))
         c.roundRect(margem_x, topo - 70, area_largura, 58, 12, fill=1, stroke=0)
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 16)
@@ -961,15 +967,15 @@ def formulario_em_branco_pdf():
                     except Exception:
                         pass
             nome_clinica = clinica.nome_impresso or clinica.nome
-            c.setFillColor(colors.HexColor("#0B3A5B"))
+            c.setFillColor(colors.HexColor("#4A9ACB"))
             c.setFont("Helvetica-Bold", 8)
             label = nome_clinica[:50]
             tw = c.stringWidth(label, "Helvetica-Bold", 8)
             c.drawString(margem_x + area_largura - tw - 10, topo - 78, label)
 
         def linha_sep(y_pos):
-            c.setStrokeColor(colors.HexColor("#CCCCCC"))
-            c.setLineWidth(0.4)
+            c.setStrokeColor(colors.HexColor("#111111"))
+            c.setLineWidth(0.8)
             c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
 
         def campo(x, y_pos, label, col_end):
@@ -978,23 +984,23 @@ def formulario_em_branco_pdf():
             c.drawString(x + pad_x, y_pos, f"{label}:")
             lw = c.stringWidth(f"{label}:", "Helvetica-Bold", fsize)
             val_x = x + pad_x + lw + 3
-            c.setStrokeColor(colors.HexColor("#BBBBBB"))
-            c.setLineWidth(0.5)
+            c.setStrokeColor(colors.HexColor("#111111"))
+            c.setLineWidth(0.8)
             c.line(val_x, y_pos - 1, col_end - pad_x, y_pos - 1)
 
         y_ficha_topo = topo - 92
         ficha_h = 26 + 17 * linha_h + 10 + linha_h + 8 * linha_h
 
         # Borda externa
-        c.setStrokeColor(colors.HexColor("#AAAAAA"))
-        c.setLineWidth(0.5)
+        c.setStrokeColor(colors.HexColor("#111111"))
+        c.setLineWidth(0.9)
         c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
 
         # Título
-        c.setFillColor(colors.HexColor("#0B3A5B"))
+        c.setFillColor(colors.HexColor("#4A9ACB"))
         c.rect(ficha_x, y_ficha_topo - 26, ficha_w, 26, fill=1, stroke=0)
         c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 10)
+        c.setFont("Helvetica-Bold", 11)
         c.drawString(ficha_x + pad_x, y_ficha_topo - 18, "Ficha de Atendimento")
 
         y = y_ficha_topo - 26 - linha_h + 4
@@ -1050,9 +1056,8 @@ def formulario_em_branco_pdf():
         campo(t2,       y, "Validade", end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 10: CONVÊNIO (ficha) | Médico
-        campo(ficha_x, y, "CONVÊNIO", mid)
-        campo(mid,      y, "Médico",   end)
+        # Linha 10: Médico
+        campo(ficha_x, y, "Médico", end)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 11: Faz uso de algum medicamento
@@ -1061,8 +1066,8 @@ def formulario_em_branco_pdf():
         label_med = "Faz uso de algum medicamento:"
         c.drawString(ficha_x + pad_x, y, label_med)
         lw2 = c.stringWidth(label_med, "Helvetica-Bold", fsize)
-        c.setStrokeColor(colors.HexColor("#BBBBBB"))
-        c.setLineWidth(0.5)
+        c.setStrokeColor(colors.HexColor("#111111"))
+        c.setLineWidth(0.8)
         c.line(ficha_x + pad_x + lw2 + 3, y - 1, end - pad_x, y - 1)
         linha_sep(y - 6); y -= linha_h
 

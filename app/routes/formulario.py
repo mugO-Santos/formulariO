@@ -27,17 +27,6 @@ def _montar_paciente(form_data, medico):
         data_nascimento = date(1900, 1, 1)
 
     nome_medico = form_data.get("nome_medico", "").strip()
-
-    convenio_validade_raw = form_data.get("convenio_validade", "").strip()
-    if convenio_validade_raw:
-        try:
-            from datetime import datetime as _dt
-            convenio_validade = _dt.strptime(convenio_validade_raw, "%Y-%m-%d").date()
-        except ValueError:
-            convenio_validade = None
-    else:
-        convenio_validade = None
-
     return Paciente(
         nome=nome,
         nome_mae=nome_mae,
@@ -53,9 +42,6 @@ def _montar_paciente(form_data, medico):
         numero=form_data.get("numero", "").strip() or None,
         bairro=form_data.get("bairro", "").strip() or None,
         cidade=form_data.get("cidade", "").strip() or None,
-        convenio_nome=form_data.get("convenio_nome", "").strip() or None,
-        convenio_numero=form_data.get("convenio_numero", "").strip() or None,
-        convenio_validade=convenio_validade,
         medico_id=medico.id if medico else None,
         clinica_id=medico.clinica_id if medico else None,
         nome_medico_digitado=nome_medico or None,

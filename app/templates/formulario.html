@@ -28,7 +28,7 @@
         </div>
 
         <div class="form-group">
-          <label for="nome_mae">Mãe *</label>
+          <label for="nome_mae">Nome da Mãe *</label>
           <input type="text" id="nome_mae" name="nome_mae" value="{{ dados.get('nome_mae','') }}" required />
         </div>
 
@@ -114,24 +114,6 @@
           <div class="form-group">
             <label for="cidade">Cidade</label>
             <input type="text" id="cidade" name="cidade" value="{{ dados.get('cidade','') }}" />
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset class="form-section">
-        <legend>Convênio</legend>
-        <div class="form-row">
-          <div class="form-group form-group--grow">
-            <label for="convenio_nome">Convênio</label>
-            <input type="text" id="convenio_nome" name="convenio_nome" value="{{ dados.get('convenio_nome','') }}" />
-          </div>
-          <div class="form-group form-group--small">
-            <label for="convenio_numero">N°</label>
-            <input type="text" id="convenio_numero" name="convenio_numero" value="{{ dados.get('convenio_numero','') }}" />
-          </div>
-          <div class="form-group form-group--small">
-            <label for="convenio_validade">Validade</label>
-            <input type="date" id="convenio_validade" name="convenio_validade" value="{{ dados.get('convenio_validade','') }}" />
           </div>
         </div>
       </fieldset>
