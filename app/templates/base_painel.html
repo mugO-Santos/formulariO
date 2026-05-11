@@ -36,7 +36,7 @@
       <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
       {% endif %}
 
-      {% if current_user.nivel == 0 and not current_user.is_superadmin and current_user.clinica %}
+      {% if current_user.nivel == 0 and current_user.clinica %}
       <button class="nav-btn" onclick="openModal('modal-configuracoes')">Configurações</button>
       {% endif %}
 
@@ -114,7 +114,7 @@
   </div>
   {% endif %}
 
-  {% if current_user.nivel == 0 and not current_user.is_superadmin and current_user.clinica %}
+  {% if current_user.nivel == 0 and current_user.clinica %}
   <!-- Modal Configurações -->
   <div id="modal-configuracoes" class="modal hidden">
     <div class="modal__box modal__box--config">
