@@ -9,6 +9,43 @@ from app.fuzzy import buscar_medico
 bp = Blueprint("formulario", __name__)
 
 
+def _validar_tamanhos_campos(form_data):
+    labels = {
+        "nome": "Nome do Paciente",
+        "nome_mae": "Nome da Mãe",
+        "cpf": "CPF",
+        "rg": "RG",
+        "estado_civil": "Estado Civil",
+        "profissao": "Profissão",
+        "email": "E-mail",
+        "telefone": "Telefone",
+        "cep": "CEP",
+        "endereco": "Endereço",
+        "numero": "Número",
+        "bairro": "Bairro",
+        "cidade": "Cidade",
+        "convenio_nome": "Convênio",
+        "convenio_numero": "N° da carteirinha",
+        "indicacao": "Indicação",
+    }
+
+    for campo, label in labels.items():
+        valor = (form_data.get(campo, "") or "").strip()
+        if not valor:
+            continue
+        coluna = Paciente.__table__.columns.get(campo)
+        limite = getattr(getattr(coluna, "type", None), "length", None)
+        if limite and len(valor) > limite:
+            raise ValueError(f"O campo '{label}' aceita no máximo {limite} caracteres.")
+
+    nome_medico = (form_data.get("nome_medico", "") or "").strip()
+    limite_nome_medico = getattr(Paciente.__table__.columns.nome_medico_digitado.type, "length", None)
+    if nome_medico and limite_nome_medico and len(nome_medico) > limite_nome_medico:
+        raise ValueError(
+            f"O campo 'Médico' aceita no máximo {limite_nome_medico} caracteres."
+        )
+
+
 def _montar_paciente(form_data, medico, clinica_id=None):
     nome = form_data.get("nome", "").strip() or "Não informado"
     nome_mae = form_data.get("nome_mae", "").strip() or "Não informado"
@@ -64,6 +101,7 @@ def _montar_paciente(form_data, medico, clinica_id=None):
 
 
 def _salvar_formulario(form_data, *, usuario_id=None, clinica_id=None, acao="Perfil criado via formulário público"):
+    _validar_tamanhos_campos(form_data)
     nome_medico = form_data.get("nome_medico", "").strip()
     medico = buscar_medico(nome_medico) if nome_medico else None
     paciente = _montar_paciente(form_data, medico, clinica_id=clinica_id)
@@ -96,6 +134,10 @@ def index():
             try:
                 _salvar_formulario(request.form)
                 return redirect(url_for("formulario.sucesso"))
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "danger")
+                return render_template("formulario.html", dados=dados_formulario)
             except IntegrityError:
                 db.session.rollback()
                 flash("Não foi possível salvar o perfil. Verifique se o CPF já existe e tente novamente.", "danger")

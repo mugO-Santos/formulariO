@@ -169,6 +169,10 @@ def cadastrar_paciente():
                 if request.form.get("acao") == "salvar_pdf":
                     return redirect(url_for("painel.exportar_pdf", pid=paciente.id))
                 return redirect(url_for("painel.ver_paciente", pid=paciente.id))
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "danger")
+                return render_template("painel/cadastrar_paciente.html", dados=dados)
             except IntegrityError:
                 db.session.rollback()
                 flash("Não foi possível salvar o perfil. Verifique se o CPF já existe e tente novamente.", "danger")
