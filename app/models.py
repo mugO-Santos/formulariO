@@ -109,7 +109,7 @@ class Paciente(db.Model):
     # Endereço
     cep = db.Column(db.String(9), nullable=True)
     endereco = db.Column(db.String(150), nullable=True)
-    numero = db.Column(db.String(10), nullable=True)
+    numero = db.Column(db.String(40), nullable=True)
     bairro = db.Column(db.String(80), nullable=True)
     cidade = db.Column(db.String(80), nullable=True)
 

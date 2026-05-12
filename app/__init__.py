@@ -225,6 +225,7 @@ def _ensure_runtime_schema_updates():
     _ensure_column(inspector, "pacientes", "convenio_numero", "VARCHAR(60)")
     _ensure_column(inspector, "pacientes", "convenio_validade", "DATE")
     _ensure_column(inspector, "pacientes", "indicacao", "VARCHAR(120)")
+    _ensure_varchar_length(inspector, "pacientes", "numero", 40)
 
     if "pacientes" in table_names:
         colunas_pacientes = {col["name"] for col in inspector.get_columns("pacientes")}
@@ -254,4 +255,42 @@ def _ensure_column(inspector, table_name, column_name, column_sql):
         db.session.rollback()
         raise RuntimeError(
             f"Falha ao criar coluna '{column_name}' na tabela '{table_name}'."
+        ) from exc
+
+
+def _ensure_varchar_length(inspector, table_name, column_name, min_length):
+    if table_name not in inspector.get_table_names():
+        return
+
+    column_info = None
+    for col in inspector.get_columns(table_name):
+        if col.get("name") == column_name:
+            column_info = col
+            break
+
+    if not column_info:
+        return
+
+    current_type = column_info.get("type")
+    current_length = getattr(current_type, "length", None)
+
+    if not current_length or current_length >= min_length:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect != "postgresql":
+        return
+
+    try:
+        db.session.execute(
+            text(
+                f"ALTER TABLE {table_name} "
+                f"ALTER COLUMN {column_name} TYPE VARCHAR({min_length})"
+            )
+        )
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        raise RuntimeError(
+            f"Falha ao ajustar tamanho de '{table_name}.{column_name}' para VARCHAR({min_length})."
         ) from exc
