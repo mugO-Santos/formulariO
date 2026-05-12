@@ -1,14 +1,17 @@
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import textwrap
 import os
-from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, make_response
+from flask import Blueprint, current_app, render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from sqlalchemy import String, cast, func, or_
+from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQLAlchemyError
 from app.extensions import db
 from app.models import Agendamento, Clinica, Encaminhamento, Paciente, Log
 from app.decorators import nivel_minimo
+from app.routes.formulario import _salvar_formulario
 from app.scope import pode_gerenciar_paciente, scoped_agendamentos, scoped_pacientes
 
 bp = Blueprint("painel", __name__, url_prefix="/painel")
@@ -78,7 +81,6 @@ def _parse_data_convenio(data_raw):
 @login_required
 def index():
     from app.models import Medico
-    from sqlalchemy import func, select
 
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
@@ -91,27 +93,27 @@ def index():
         .all()
     )
 
-    base_ids = select(base_pacientes.with_entities(Paciente.id).subquery().c.id)
-
-    # Médicos que têm ao menos 1 paciente ativo, ordenados pelo paciente mais recente
-    medicos_com_pacientes = db.session.query(Medico, func.max(Paciente.criado_em).label("ultimo")).join(
-        Paciente, Paciente.medico_id == Medico.id
+    pacientes_por_medico = (
+        base_pacientes
+        .filter(Paciente.medico_id.isnot(None))
+        .order_by(Paciente.criado_em.desc())
+        .all()
     )
-    medicos_com_pacientes = medicos_com_pacientes.filter(Paciente.id.in_(base_ids))
-    medicos_com_pacientes = medicos_com_pacientes.group_by(Medico.id).order_by(
-        func.max(Paciente.criado_em).desc()
-    ).all()
+    mapa_pacientes = defaultdict(list)
+    ultimo_por_medico = {}
+    for p in pacientes_por_medico:
+        mapa_pacientes[p.medico_id].append(p)
+        ultimo_por_medico.setdefault(p.medico_id, p.criado_em)
 
+    medicos = {
+        m.id: m
+        for m in Medico.query.filter(Medico.id.in_(mapa_pacientes.keys())).all()
+    }
     grupos = []
-    for m, _ in medicos_com_pacientes:
-        pacs = (
-            scoped_pacientes(Paciente.query, current_user)
-            .filter_by(medico_id=m.id)
-            .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.is_(None))
-            .order_by(Paciente.criado_em.desc())
-            .all()
-        )
-        grupos.append({"medico": m, "pacientes": pacs})
+    for medico_id, _ in sorted(ultimo_por_medico.items(), key=lambda item: item[1], reverse=True):
+        medico = medicos.get(medico_id)
+        if medico:
+            grupos.append({"medico": medico, "pacientes": mapa_pacientes[medico_id]})
 
     pacientes_para_agenda = (
         scoped_pacientes(Paciente.query, current_user)
@@ -140,6 +142,61 @@ def index():
         pacientes_para_agenda=pacientes_para_agenda,
         proximos_agendamentos=proximos_agendamentos,
     )
+
+
+@bp.route("/pacientes/novo", methods=["GET", "POST"])
+@login_required
+def cadastrar_paciente():
+    dados = request.form.to_dict(flat=True) if request.method == "POST" else {}
+
+    if request.method == "POST":
+        clinica_id = current_user.clinica_id
+        nome_medico = request.form.get("nome_medico", "").strip()
+
+        if clinica_id is None and not nome_medico:
+            flash("Informe um médico ou acesse uma clínica para vincular o paciente corretamente.", "danger")
+            return render_template("painel/cadastrar_paciente.html", dados=dados)
+
+        for tentativa in range(2):
+            try:
+                paciente = _salvar_formulario(
+                    request.form,
+                    usuario_id=current_user.id,
+                    clinica_id=clinica_id,
+                    acao="Perfil criado via painel",
+                )
+                flash(f"Paciente {paciente.nome} cadastrado com sucesso.", "success")
+                if request.form.get("acao") == "salvar_pdf":
+                    return redirect(url_for("painel.exportar_pdf", pid=paciente.id))
+                return redirect(url_for("painel.ver_paciente", pid=paciente.id))
+            except IntegrityError:
+                db.session.rollback()
+                flash("Não foi possível salvar o perfil. Verifique se o CPF já existe e tente novamente.", "danger")
+                return render_template("painel/cadastrar_paciente.html", dados=dados)
+            except (OperationalError, InterfaceError) as exc:
+                db.session.rollback()
+                current_app.logger.warning(
+                    "Falha transitória ao salvar formulário interno. tentativa=%s",
+                    tentativa + 1,
+                    exc_info=exc,
+                )
+                if tentativa == 0:
+                    continue
+                flash(
+                    "Houve uma instabilidade temporária ao salvar o cadastro. Os dados continuam preenchidos para nova tentativa.",
+                    "danger",
+                )
+                return render_template("painel/cadastrar_paciente.html", dados=dados)
+            except SQLAlchemyError:
+                db.session.rollback()
+                current_app.logger.exception("Erro inesperado ao salvar cadastro interno de paciente.")
+                flash(
+                    "Não foi possível concluir o cadastro agora. Os dados continuam preenchidos para nova tentativa.",
+                    "danger",
+                )
+                return render_template("painel/cadastrar_paciente.html", dados=dados)
+
+    return render_template("painel/cadastrar_paciente.html", dados=dados)
 
 
 @bp.route("/paciente/<int:pid>")
@@ -334,7 +391,6 @@ def desconcluir_paciente(pid):
 @login_required
 def pacientes_concluidos():
     from app.models import Medico
-    from sqlalchemy import func, select
 
     busca = request.args.get("q", "").strip()
 
@@ -352,26 +408,27 @@ def pacientes_concluidos():
         .all()
     )
 
-    base_ids = select(base_pacientes.with_entities(Paciente.id).subquery().c.id)
-
-    medicos_com_pacientes = db.session.query(Medico, func.max(Paciente.concluido_em).label("ultimo")).join(
-        Paciente, Paciente.medico_id == Medico.id
+    pacientes_por_medico = (
+        base_pacientes
+        .filter(Paciente.medico_id.isnot(None))
+        .order_by(Paciente.concluido_em.desc())
+        .all()
     )
-    medicos_com_pacientes = medicos_com_pacientes.filter(Paciente.id.in_(base_ids))
-    medicos_com_pacientes = medicos_com_pacientes.group_by(Medico.id).order_by(
-        func.max(Paciente.concluido_em).desc()
-    ).all()
+    mapa_pacientes = defaultdict(list)
+    ultimo_por_medico = {}
+    for p in pacientes_por_medico:
+        mapa_pacientes[p.medico_id].append(p)
+        ultimo_por_medico.setdefault(p.medico_id, p.concluido_em)
 
+    medicos = {
+        m.id: m
+        for m in Medico.query.filter(Medico.id.in_(mapa_pacientes.keys())).all()
+    }
     grupos = []
-    for m, _ in medicos_com_pacientes:
-        pacs = (
-            scoped_pacientes(Paciente.query, current_user)
-            .filter_by(medico_id=m.id)
-            .filter(Paciente.excluido_em.is_(None), Paciente.concluido_em.isnot(None))
-            .order_by(Paciente.concluido_em.desc())
-            .all()
-        )
-        grupos.append({"medico": m, "pacientes": pacs})
+    for medico_id, _ in sorted(ultimo_por_medico.items(), key=lambda item: item[1], reverse=True):
+        medico = medicos.get(medico_id)
+        if medico:
+            grupos.append({"medico": medico, "pacientes": mapa_pacientes[medico_id]})
 
     agendamentos_concluidos = (
         _agendamento_query()
@@ -666,7 +723,7 @@ def exportar_pdf(pid):
         c = canvas.Canvas(buffer, pagesize=A4)
         largura, altura = A4
         margem_x = 36
-        margem_y = 36
+        margem_y = 24
         area_largura = largura - (margem_x * 2)
         topo = altura - margem_y
 
@@ -677,6 +734,15 @@ def exportar_pdf(pid):
 
         def fmt_data(dt):
             return dt.strftime("%d/%m/%Y") if dt else "-"
+
+        def calcular_idade(dt_nascimento):
+            if not dt_nascimento:
+                return ""
+            hoje = datetime.now().date()
+            idade = hoje.year - dt_nascimento.year
+            if (hoje.month, hoje.day) < (dt_nascimento.month, dt_nascimento.day):
+                idade -= 1
+            return str(max(idade, 0))
 
         def draw_card(x, y_topo, card_largura, titulo, campos):
             linha_altura = 18
@@ -742,7 +808,7 @@ def exportar_pdf(pid):
                     from reportlab.lib.utils import ImageReader
                     img = ImageReader(logo_abs)
                     iw, ih = img.getSize()
-                    max_w, max_h = 100, 40
+                    max_w, max_h = 125, 50
                     escala = min(max_w / iw, max_h / ih, 1.0)
                     dw, dh = iw * escala, ih * escala
                     ix = margem_x + area_largura - dw - 10
@@ -808,10 +874,11 @@ def exportar_pdf(pid):
             val_x = x + pad_x + lw + 3
             available = col_end - val_x - pad_x
             if valor:
-                c.setFillColor(colors.HexColor("#0F172A"))
-                c.setFont("Helvetica", fsize)
+                val_size = 11
+                c.setFillColor(colors.HexColor("#000000"))
+                c.setFont("Helvetica", val_size)
                 txt = valor
-                while c.stringWidth(txt, "Helvetica", fsize) > available and len(txt) > 1:
+                while c.stringWidth(txt, "Helvetica", val_size) > available and len(txt) > 1:
                     txt = txt[:-1]
                 if txt != valor:
                     txt = txt[:-1] + "…"
@@ -847,10 +914,10 @@ def exportar_pdf(pid):
         campo_ficha(mid,      y, "Cel",    "",                       end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 5: RG | Data Nascimento | Idade (branco)
+        # Linha 5: RG | Data Nascimento | Idade
         campo_ficha(ficha_x, y, "RG",               paciente.rg or "",               t1)
         campo_ficha(t1,       y, "Data Nascimento",  fmt_data(paciente.data_nascimento), t2)
-        campo_ficha(t2,       y, "Idade",            "",                               end)
+        campo_ficha(t2,       y, "Idade",            calcular_idade(paciente.data_nascimento), end)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 6: CPF | Profissão
@@ -858,8 +925,8 @@ def exportar_pdf(pid):
         campo_ficha(mid,      y, "Profissão", paciente.profissao or "", end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 7: Indicação (branco) | Est. Civil
-        campo_ficha(ficha_x, y, "Indicação", "",                          mid)
+        # Linha 7: Indicação | Est. Civil
+        campo_ficha(ficha_x, y, "Indicação", paciente.indicacao or "", mid)
         campo_ficha(mid,      y, "Est. Civil", paciente.estado_civil or "", end)
         linha_sep(y - 6); y -= linha_h
 
@@ -913,7 +980,6 @@ def exportar_pdf(pid):
 
 @bp.route("/formulario-em-branco/pdf")
 @login_required
-@nivel_minimo(0)
 def formulario_em_branco_pdf():
     """Gera PDF do formulário de cadastro em branco para preenchimento manual."""
     try:
@@ -945,8 +1011,6 @@ def formulario_em_branco_pdf():
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 16)
         c.drawString(margem_x + 16, topo - 36, "Formulário de Cadastro de Paciente")
-        c.setFont("Helvetica", 10)
-        c.drawString(margem_x + 16, topo - 54, "Preencha com letra legível")
 
         # Logo/nome da clínica
         clinica = current_user.clinica
@@ -960,7 +1024,7 @@ def formulario_em_branco_pdf():
                         from reportlab.lib.utils import ImageReader
                         img = ImageReader(logo_abs)
                         iw, ih = img.getSize()
-                        escala = min(100 / iw, 40 / ih, 1.0)
+                        escala = min(125 / iw, 50 / ih, 1.0)
                         dw, dh = iw * escala, ih * escala
                         c.drawImage(logo_abs, margem_x + area_largura - dw - 10, topo - 12 - dh,
                                     width=dw, height=dh, mask="auto")

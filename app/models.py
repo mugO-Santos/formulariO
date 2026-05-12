@@ -117,6 +117,7 @@ class Paciente(db.Model):
     convenio_nome = db.Column(db.String(120), nullable=True)
     convenio_numero = db.Column(db.String(60), nullable=True)
     convenio_validade = db.Column(db.Date, nullable=True)
+    indicacao = db.Column(db.String(120), nullable=True)
 
     # Pagamento
     forma_pagamento = db.Column(db.String(30), nullable=True)

@@ -32,23 +32,20 @@
       <a href="{{ url_for('painel.excluidos') }}" class="nav-btn">Excluídos</a>
       {% endif %}
 
-      {% if current_user.is_superadmin %}
-      <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
-      {% endif %}
-
-      {% if current_user.nivel == 0 or current_user.is_superadmin %}
       <button class="nav-btn" onclick="openModal('modal-configuracoes')">Configurações</button>
-      {% endif %}
 
       <!-- Perfil -->
       <button class="nav-btn" onclick="openModal('modal-perfil')">Perfil</button>
 
       <!-- Notificações -->
-      {% set notifs = current_user.notificacoes | selectattr('lida', 'equalto', false) | list %}
-      {% if notifs %}
+      {% if unread_notifs_count %}
       <button class="nav-btn nav-btn--alert" onclick="openModal('modal-notif')">
-        🔔 {{ notifs | length }}
+        🔔 {{ unread_notifs_count }}
       </button>
+      {% endif %}
+
+      {% if current_user.nivel <= 1 %}
+      <a href="{{ url_for('logs.index') }}" class="nav-btn">Logs</a>
       {% endif %}
 
       <a href="{{ url_for('auth.logout') }}" class="nav-btn nav-btn--logout">Sair</a>
@@ -85,9 +82,12 @@
   <div id="modal-notif" class="modal hidden">
     <div class="modal__box">
       <h2>Notificações</h2>
-      {% for n in current_user.notificacoes | selectattr('lida', 'equalto', false) | list %}
+      {% for n in unread_notifs %}
         <p class="notif-item">{{ n.mensagem }}</p>
       {% endfor %}
+      {% if unread_notifs_count > unread_notifs|length %}
+        <p class="hint">Mostrando as últimas {{ unread_notifs|length }} notificações não lidas.</p>
+      {% endif %}
       <button class="modal__close" onclick="closeModal('modal-notif')">✕</button>
     </div>
   </div>
@@ -114,7 +114,6 @@
   </div>
   {% endif %}
 
-  {% if current_user.nivel == 0 or current_user.is_superadmin %}
   <!-- Modal Configurações -->
   <div id="modal-configuracoes" class="modal hidden">
     <div class="modal__box modal__box--config">
@@ -161,7 +160,6 @@
       <button class="modal__close" onclick="closeModal('modal-configuracoes')">✕</button>
     </div>
   </div>
-  {% endif %}
 
   <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
   {% block scripts %}{% endblock %}

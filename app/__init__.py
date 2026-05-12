@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import Flask
+from flask_login import current_user
 from sqlalchemy import event, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from .extensions import db, login_manager
@@ -119,6 +120,21 @@ def create_app():
                     continue
         return None
 
+    @app.context_processor
+    def inject_header_notifications():
+        if not current_user.is_authenticated:
+            return {"unread_notifs": [], "unread_notifs_count": 0}
+
+        from .models import Notificacao
+
+        base_query = Notificacao.query.filter_by(usuario_id=current_user.id, lida=False)
+        unread_notifs = base_query.order_by(Notificacao.criado_em.desc()).limit(20).all()
+        unread_notifs_count = base_query.count()
+        return {
+            "unread_notifs": unread_notifs,
+            "unread_notifs_count": unread_notifs_count,
+        }
+
     # ── Blueprints ────────────────────────────────────────────────
     from .routes.formulario import bp as formulario_bp
     from .routes.auth import bp as auth_bp
@@ -208,6 +224,7 @@ def _ensure_runtime_schema_updates():
     _ensure_column(inspector, "pacientes", "convenio_nome", "VARCHAR(120)")
     _ensure_column(inspector, "pacientes", "convenio_numero", "VARCHAR(60)")
     _ensure_column(inspector, "pacientes", "convenio_validade", "DATE")
+    _ensure_column(inspector, "pacientes", "indicacao", "VARCHAR(120)")
 
     if "pacientes" in table_names:
         colunas_pacientes = {col["name"] for col in inspector.get_columns("pacientes")}

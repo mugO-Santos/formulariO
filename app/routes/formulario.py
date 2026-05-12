@@ -9,7 +9,7 @@ from app.fuzzy import buscar_medico
 bp = Blueprint("formulario", __name__)
 
 
-def _montar_paciente(form_data, medico):
+def _montar_paciente(form_data, medico, clinica_id=None):
     nome = form_data.get("nome", "").strip() or "Não informado"
     nome_mae = form_data.get("nome_mae", "").strip() or "Não informado"
     cpf = form_data.get("cpf", "").strip()
@@ -25,6 +25,15 @@ def _montar_paciente(form_data, medico):
             data_nascimento = date(1900, 1, 1)
     else:
         data_nascimento = date(1900, 1, 1)
+
+    convenio_validade_raw = form_data.get("convenio_validade", "").strip()
+    if convenio_validade_raw:
+        try:
+            convenio_validade = datetime.strptime(convenio_validade_raw, "%Y-%m-%d").date()
+        except ValueError:
+            convenio_validade = None
+    else:
+        convenio_validade = None
 
     nome_medico = form_data.get("nome_medico", "").strip()
     return Paciente(
@@ -42,34 +51,41 @@ def _montar_paciente(form_data, medico):
         numero=form_data.get("numero", "").strip() or None,
         bairro=form_data.get("bairro", "").strip() or None,
         cidade=form_data.get("cidade", "").strip() or None,
+        convenio_nome=form_data.get("convenio_nome", "").strip() or None,
+        convenio_numero=form_data.get("convenio_numero", "").strip() or None,
+        convenio_validade=convenio_validade,
+        indicacao=form_data.get("indicacao", "").strip() or None,
         medico_id=medico.id if medico else None,
-        clinica_id=medico.clinica_id if medico else None,
+        clinica_id=medico.clinica_id if medico else clinica_id,
         nome_medico_digitado=nome_medico or None,
         aceite_lgpd=bool(form_data.get("aceite_lgpd")),
         aceite_lgpd_em=datetime.now(timezone.utc) if form_data.get("aceite_lgpd") else None,
     )
 
 
-def _salvar_formulario(form_data):
+def _salvar_formulario(form_data, *, usuario_id=None, clinica_id=None, acao="Perfil criado via formulário público"):
     nome_medico = form_data.get("nome_medico", "").strip()
     medico = buscar_medico(nome_medico) if nome_medico else None
-    paciente = _montar_paciente(form_data, medico)
+    paciente = _montar_paciente(form_data, medico, clinica_id=clinica_id)
 
     db.session.add(paciente)
     db.session.flush()
 
     db.session.add(Log(
+        usuario_id=usuario_id,
         paciente_id=paciente.id,
-        acao="Perfil criado via formulário público",
+        acao=acao,
     ))
 
     if not medico and nome_medico:
         db.session.add(Log(
+            usuario_id=usuario_id,
             paciente_id=paciente.id,
             acao=f"Médico não encontrado para: '{nome_medico}'",
         ))
 
     db.session.commit()
+    return paciente
 
 
 @bp.route("/", methods=["GET", "POST"])

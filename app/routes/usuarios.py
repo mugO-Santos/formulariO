@@ -191,10 +191,9 @@ def _redirect_back(default_endpoint="painel.index"):
 
 @bp.route("/clinica/logo", methods=["POST"])
 @login_required
-@nivel_minimo(0)
 def atualizar_logo_clinica():
-    if current_user.is_superadmin or not current_user.clinica_id:
-        flash("Acesse esta função como admin de uma clínica.", "danger")
+    if not current_user.clinica_id:
+        flash("Selecione uma clínica para usar esta função.", "danger")
         return _redirect_back("painel.meu_perfil")
 
     clinica = Clinica.query.get_or_404(current_user.clinica_id)

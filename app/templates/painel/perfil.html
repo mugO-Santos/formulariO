@@ -117,18 +117,5 @@
       {% endif %}
     </form>
   </section>
-
-  <section class="perfil__section">
-    <h2>Histórico</h2>
-    <ul class="log-lista">
-      {% for log in paciente.logs | sort(attribute='criado_em', reverse=True) %}
-      <li class="log-item">
-        <span class="log-data">{{ log.criado_em | horario_sp }}</span>
-        {% if log.usuario %}<span class="log-usuario">{{ log.usuario.nome }}</span>{% endif %}
-        <span class="log-acao">{{ log.acao }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
 </div>
 {% endblock %}

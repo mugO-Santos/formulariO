@@ -5,6 +5,10 @@
 <h1 class="page-title">Pacientes</h1>
 <p class="page-subtitle">Perfis que já passaram pela triagem e foram concluídos.</p>
 
+<div style="margin: 0 0 1rem; display: flex; justify-content: flex-end;">
+  <a href="{{ url_for('painel.cadastrar_paciente') }}" class="btn btn--primary">Cadastrar Paciente</a>
+</div>
+
 <form method="GET" action="{{ url_for('painel.pacientes_concluidos') }}" class="busca-inline">
   <input
     type="search"
