@@ -120,10 +120,20 @@
       <h2>Configurações da Clínica</h2>
       <p class="modal__hint">A imagem e o nome abaixo aparecem no cabeçalho do PDF dos pacientes desta clínica.</p>
 
-      {% if current_user.clinica %}
-      {% if current_user.clinica.logo_path %}
+      {% set clinicas_config = current_user.clinicas_vinculadas %}
+      {% set clinica_ref = current_user.clinica or (clinicas_config[0] if clinicas_config else none) %}
+
+      {% if clinica_ref %}
+      {% if clinicas_config | length > 1 %}
+      <p class="modal__hint" style="color:#3b82f6;">
+        Você está vinculado a <strong>{{ clinicas_config | length }}</strong> clínicas.
+        Ao salvar, a logo será aplicada a todas elas:
+        {% for c in clinicas_config %}<em>{{ c.nome }}</em>{% if not loop.last %}, {% endif %}{% endfor %}.
+      </p>
+      {% endif %}
+      {% if clinica_ref.logo_path %}
       <div class="config-clinica__preview">
-        <img src="{{ url_for('static', filename=current_user.clinica.logo_path) }}"
+        <img src="{{ url_for('static', filename=clinica_ref.logo_path) }}"
              alt="Logo atual"
              class="config-clinica__logo">
         <p class="config-clinica__caption">Logo atual</p>
@@ -144,7 +154,7 @@
                  name="nome_impresso"
                  maxlength="120"
                  placeholder="Ex: Clínica São Lucas"
-                 value="{{ current_user.clinica.nome_impresso or '' }}" />
+                 value="{{ clinica_ref.nome_impresso or '' }}" />
         </div>
         <button type="submit" class="btn btn--primary">Salvar Configurações</button>
       </form>

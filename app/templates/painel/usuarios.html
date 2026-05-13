@@ -63,13 +63,41 @@
 <h2>Usuários Ativos</h2>
 <table class="tabela">
   <thead>
-    <tr><th>Nome</th><th>Clínica</th><th>Cargo</th><th>Nível</th><th>Ações</th></tr>
+    <tr><th>Nome</th><th>Clínica Principal</th><th>Clínicas Vinculadas</th><th>Cargo</th><th>Nível</th><th>Ações</th></tr>
   </thead>
   <tbody>
     {% for u in usuarios %}
     <tr>
       <td>{{ u.nome }}</td>
       <td>{{ u.clinica.nome if u.clinica else 'Global' }}</td>
+      <td>
+        {% for c in u.clinicas_vinculadas %}
+          <span style="display:inline-block;background:#e2e8f0;border-radius:4px;padding:1px 6px;font-size:.82rem;margin:1px;">
+            {{ c.nome }}
+            {% if current_user.is_superadmin %}
+            <form method="POST" action="{{ url_for('usuarios.desvincular_clinica', uid=u.id, cid=c.id) }}"
+                  style="display:inline" onsubmit="return confirm('Desvincular {{ c.nome }} de {{ u.nome }}?')">
+              <button type="submit" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:.8rem;padding:0 2px;" title="Desvincular">✕</button>
+            </form>
+            {% endif %}
+          </span>
+        {% else %}
+          <span style="color:#94a3b8;font-size:.82rem;">Nenhuma</span>
+        {% endfor %}
+        {% if current_user.is_superadmin %}
+        <form method="POST" action="{{ url_for('usuarios.vincular_clinica', uid=u.id) }}" style="display:inline-flex;gap:.3rem;margin-top:4px;align-items:center;">
+          <select name="clinica_id" style="font-size:.82rem;padding:2px 4px;">
+            <option value="">+ Vincular clínica</option>
+            {% for c in clinicas %}
+              {% if c not in u.clinicas_vinculadas %}
+              <option value="{{ c.id }}">{{ c.nome }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn--sm">Ok</button>
+        </form>
+        {% endif %}
+      </td>
       <td>{{ u.cargo.nome }}</td>
       <td>{{ u.nivel }}</td>
       <td>
@@ -82,7 +110,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="5" class="empty">Nenhum usuário.</td></tr>
+    <tr><td colspan="6" class="empty">Nenhum usuário.</td></tr>
     {% endfor %}
   </tbody>
 </table>

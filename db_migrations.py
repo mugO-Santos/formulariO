@@ -9,6 +9,55 @@ from app import create_app, db
 from sqlalchemy import text, inspect
 
 
+def add_usuario_clinicas():
+    """Create usuario_clinicas many-to-many table and populate from existing clinica_id."""
+    app = create_app()
+
+    with app.app_context():
+        inspector = inspect(db.engine)
+        db_dialect = db.engine.dialect.name
+        print(f"Database dialect: {db_dialect}")
+        print("=" * 60)
+
+        if "usuario_clinicas" in inspector.get_table_names():
+            print("✓ Table 'usuario_clinicas' already exists, skipping creation.")
+        else:
+            create_sql = """
+                CREATE TABLE usuario_clinicas (
+                    usuario_id INTEGER NOT NULL,
+                    clinica_id INTEGER NOT NULL,
+                    PRIMARY KEY (usuario_id, clinica_id),
+                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+                    FOREIGN KEY (clinica_id) REFERENCES clinicas(id)
+                )
+            """
+            db.session.execute(text(create_sql))
+            db.session.commit()
+            print("✓ Table 'usuario_clinicas' created.")
+
+        # Populate from existing clinica_id (skip duplicates)
+        rows = db.session.execute(
+            text("SELECT id, clinica_id FROM usuarios WHERE clinica_id IS NOT NULL")
+        ).fetchall()
+
+        inserted = 0
+        for usuario_id, clinica_id in rows:
+            exists = db.session.execute(
+                text("SELECT 1 FROM usuario_clinicas WHERE usuario_id=:u AND clinica_id=:c"),
+                {"u": usuario_id, "c": clinica_id},
+            ).fetchone()
+            if not exists:
+                db.session.execute(
+                    text("INSERT INTO usuario_clinicas (usuario_id, clinica_id) VALUES (:u, :c)"),
+                    {"u": usuario_id, "c": clinica_id},
+                )
+                inserted += 1
+
+        db.session.commit()
+        print(f"✓ Populated {inserted} existing user→clinic links from clinica_id column.")
+        print("=" * 60)
+
+
 def add_indexes():
     """Add performance indexes to frequently queried columns."""
     app = create_app()
@@ -142,10 +191,11 @@ def verify_indexes():
 if __name__ == "__main__":
     import sys
     
-    print("📦 Database Migration: Adding Performance Indexes")
+    print("📦 Database Migration: Adding Performance Indexes + usuario_clinicas table")
     print()
     
     try:
+        add_usuario_clinicas()
         add_indexes()
         verify_indexes()
         sys.exit(0)

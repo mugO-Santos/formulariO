@@ -2,6 +2,13 @@ from datetime import datetime, timezone
 from flask_login import UserMixin
 from app.extensions import db
 
+# Association table: many-to-many between Usuario and Clinica
+usuario_clinicas = db.Table(
+    "usuario_clinicas",
+    db.Column("usuario_id", db.Integer, db.ForeignKey("usuarios.id"), primary_key=True),
+    db.Column("clinica_id", db.Integer, db.ForeignKey("clinicas.id"), primary_key=True),
+)
+
 
 class Clinica(db.Model):
     __tablename__ = "clinicas"
@@ -53,6 +60,9 @@ class Usuario(UserMixin, db.Model):
 
     cargo = db.relationship("Cargo", back_populates="usuarios")
     clinica = db.relationship("Clinica", back_populates="usuarios")
+    clinicas_vinculadas = db.relationship(
+        "Clinica", secondary=usuario_clinicas, backref="usuarios_vinculados"
+    )
     logs = db.relationship("Log", back_populates="usuario")
     notificacoes = db.relationship("Notificacao", back_populates="usuario")
     encaminhamentos_enviados = db.relationship("Encaminhamento", back_populates="enviado_por")

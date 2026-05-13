@@ -65,12 +65,16 @@ def novo():
     else:
         clinica_id = current_user.clinica_id
 
-    db.session.add(Usuario(
+    clinica = Clinica.query.get(clinica_id) if clinica_id else None
+    novo_usuario = Usuario(
         nome=nome,
         senha_hash=generate_password_hash(senha),
         cargo_id=cargo.id,
         clinica_id=clinica_id,
-    ))
+    )
+    if clinica:
+        novo_usuario.clinicas_vinculadas.append(clinica)
+    db.session.add(novo_usuario)
     db.session.commit()
     flash(f"Usuário '{nome}' criado.", "success")
     return redirect(url_for("usuarios.index"))
@@ -160,6 +164,38 @@ def excluir(uid):
     return redirect(url_for("usuarios.index"))
 
 
+@bp.route("/<int:uid>/vincular-clinica", methods=["POST"])
+@login_required
+@superadmin_required
+def vincular_clinica(uid):
+    usuario = Usuario.query.get_or_404(uid)
+    clinica_id_raw = request.form.get("clinica_id", "").strip()
+    if not clinica_id_raw:
+        flash("Selecione uma clínica.", "danger")
+        return redirect(url_for("usuarios.index"))
+    clinica = Clinica.query.get_or_404(int(clinica_id_raw))
+    if clinica not in usuario.clinicas_vinculadas:
+        usuario.clinicas_vinculadas.append(clinica)
+        db.session.commit()
+        flash(f"Clínica '{clinica.nome}' vinculada ao usuário '{usuario.nome}'.", "success")
+    else:
+        flash("Usuário já está vinculado a essa clínica.", "info")
+    return redirect(url_for("usuarios.index"))
+
+
+@bp.route("/<int:uid>/desvincular-clinica/<int:cid>", methods=["POST"])
+@login_required
+@superadmin_required
+def desvincular_clinica(uid, cid):
+    usuario = Usuario.query.get_or_404(uid)
+    clinica = Clinica.query.get_or_404(cid)
+    if clinica in usuario.clinicas_vinculadas:
+        usuario.clinicas_vinculadas.remove(clinica)
+        db.session.commit()
+        flash(f"Clínica '{clinica.nome}' desvinculada do usuário '{usuario.nome}'.", "success")
+    return redirect(url_for("usuarios.index"))
+
+
 @bp.route("/novo-cargo", methods=["POST"])
 @login_required
 @superadmin_required
@@ -192,13 +228,18 @@ def _redirect_back(default_endpoint="painel.index"):
 @bp.route("/clinica/logo", methods=["POST"])
 @login_required
 def atualizar_logo_clinica():
-    if not current_user.clinica_id:
+    clinicas_alvo = current_user.clinicas_vinculadas
+    if not clinicas_alvo:
         flash("Selecione uma clínica para usar esta função.", "danger")
         return _redirect_back("painel.meu_perfil")
 
-    clinica = Clinica.query.get_or_404(current_user.clinica_id)
+    # Use primary clinic for context (nome_impresso, logo preview)
+    clinica_principal = current_user.clinica or clinicas_alvo[0]
+
     nome_impresso = request.form.get("nome_impresso", "").strip() or None
-    clinica.nome_impresso = nome_impresso
+    # Update nome_impresso only on clinicas where this user is primary owner
+    # (to avoid overwriting another clinic's name unintentionally)
+    clinica_principal.nome_impresso = nome_impresso
 
     arquivo = request.files.get("logo")
     if arquivo and arquivo.filename:
@@ -215,15 +256,32 @@ def atualizar_logo_clinica():
         from flask import current_app
         logo_dir = os.path.join(current_app.static_folder, "logos")
         os.makedirs(logo_dir, exist_ok=True)
-        # Remove logo anterior se existir
-        if clinica.logo_path:
-            caminho_antigo = os.path.join(current_app.static_folder, clinica.logo_path.lstrip("/"))
-            if os.path.isfile(caminho_antigo):
-                os.remove(caminho_antigo)
-        nome_arquivo = f"clinica_{clinica.id}_{uuid.uuid4().hex[:8]}.{ext}"
+
+        # Collect old logo paths that will be replaced
+        old_paths = {c.logo_path for c in clinicas_alvo if c.logo_path}
+
+        nome_arquivo = f"clinica_{clinica_principal.id}_{uuid.uuid4().hex[:8]}.{ext}"
         caminho = os.path.join(logo_dir, secure_filename(nome_arquivo))
         arquivo.save(caminho)
-        clinica.logo_path = f"logos/{secure_filename(nome_arquivo)}"
+        novo_logo_path = f"logos/{secure_filename(nome_arquivo)}"
+
+        # Apply the same logo to ALL linked clinics
+        for c in clinicas_alvo:
+            c.logo_path = novo_logo_path
+
+        # Remove old logo files no longer referenced by any clinic
+        from app.models import Clinica as ClinicaModel
+        still_used = {
+            row.logo_path
+            for row in ClinicaModel.query.with_entities(ClinicaModel.logo_path).filter(
+                ClinicaModel.logo_path.isnot(None)
+            ).all()
+        }
+        for old_path in old_paths:
+            if old_path and old_path not in still_used:
+                caminho_antigo = os.path.join(current_app.static_folder, old_path.lstrip("/"))
+                if os.path.isfile(caminho_antigo):
+                    os.remove(caminho_antigo)
 
     db.session.add(Log(usuario_id=current_user.id, acao="Atualizou logo/nome da clínica"))
     db.session.commit()
