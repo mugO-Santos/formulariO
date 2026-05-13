@@ -145,6 +145,43 @@ def editar_clinica(cid):
     return redirect(url_for("usuarios.index"))
 
 
+@bp.route("/clinica/<int:cid>/apagar", methods=["POST"])
+@login_required
+@superadmin_required
+def apagar_clinica(cid):
+    clinica = Clinica.query.get_or_404(cid)
+
+    # Bloquear se houver usuários, médicos, pacientes ou agendamentos vinculados
+    usuarios_ativos = [u for u in clinica.usuarios if u.ativo]
+    if usuarios_ativos:
+        flash(f"Não é possível apagar '{clinica.nome}': há {len(usuarios_ativos)} usuário(s) ativo(s) vinculado(s).", "danger")
+        return redirect(url_for("usuarios.index"))
+
+    from app.models import Agendamento
+    if clinica.pacientes:
+        flash(f"Não é possível apagar '{clinica.nome}': há {len(clinica.pacientes)} paciente(s) vinculado(s).", "danger")
+        return redirect(url_for("usuarios.index"))
+
+    if clinica.agendamentos:
+        flash(f"Não é possível apagar '{clinica.nome}': há {len(clinica.agendamentos)} agendamento(s) vinculado(s).", "danger")
+        return redirect(url_for("usuarios.index"))
+
+    nome = clinica.nome
+
+    # Remove logo file if present
+    if clinica.logo_path:
+        from flask import current_app
+        caminho = os.path.join(current_app.static_folder, clinica.logo_path.lstrip("/"))
+        if os.path.isfile(caminho):
+            os.remove(caminho)
+
+    db.session.add(Log(usuario_id=current_user.id, acao=f"Clínica apagada: {nome}"))
+    db.session.delete(clinica)
+    db.session.commit()
+    flash(f"Clínica '{nome}' apagada com sucesso.", "success")
+    return redirect(url_for("usuarios.index"))
+
+
 @bp.route("/<int:uid>/excluir", methods=["POST"])
 @login_required
 @nivel_minimo(0)

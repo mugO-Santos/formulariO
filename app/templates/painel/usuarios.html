@@ -141,8 +141,12 @@
           </label>
       </td>
       <td>{{ clinica.usuarios | selectattr('ativo', 'equalto', true) | list | length }}</td>
-      <td>
+      <td style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
           <button type="submit" class="btn btn--sm">Salvar</button>
+        </form>
+        <form method="POST" action="{{ url_for('usuarios.apagar_clinica', cid=clinica.id) }}"
+              onsubmit="return confirm('Apagar a clínica \'{{ clinica.nome }}\' permanentemente? Esta ação não pode ser desfeita.')">
+          <button type="submit" class="btn btn--sm btn--danger">Apagar</button>
         </form>
       </td>
     </tr>
