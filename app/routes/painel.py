@@ -903,6 +903,7 @@ def exportar_pdf(pid):
                     c.setFillColor(colors.HexColor("#FFF7C2"))
                     c.roundRect(val_x - 2, y_pos - 2, txt_w + 4, val_size + 3, 2, fill=1, stroke=0)
 
+                c.setFillColor(colors.HexColor("#000000"))
                 c.drawString(val_x, y_pos, txt)
             else:
                 c.setStrokeColor(colors.HexColor("#111111"))
