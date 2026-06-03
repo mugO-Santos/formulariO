@@ -3,6 +3,9 @@ from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import textwrap
 import os
+import re
+import unicodedata
+from urllib.parse import quote
 from flask import Blueprint, current_app, render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
@@ -38,6 +41,21 @@ def _requer_gerencia_paciente(paciente):
         return True
     flash("Este perfil foi compartilhado com sua clínica para consulta. Edições ficam com a clínica de origem.", "warning")
     return False
+
+
+def _nome_arquivo_pdf_paciente(paciente):
+    nome_base = (paciente.nome or "").strip()
+    if not nome_base:
+        return f"paciente_{paciente.id}.pdf"
+
+    # Remove acentos e limita a caracteres seguros para nome de arquivo.
+    nome_ascii = unicodedata.normalize("NFKD", nome_base).encode("ascii", "ignore").decode("ascii")
+    nome_limpo = re.sub(r"[^A-Za-z0-9_-]+", "_", nome_ascii).strip("_")
+    nome_limpo = re.sub(r"_+", "_", nome_limpo)
+    if not nome_limpo:
+        nome_limpo = f"paciente_{paciente.id}"
+
+    return f"{nome_limpo[:80]}.pdf"
 
 
 def _filtro_busca_paciente(texto_busca):
@@ -842,8 +860,8 @@ def exportar_pdf(pid):
 
         y_ficha_topo = y_inicio_cards - 10
 
-        # Calcula altura total da ficha: título + 10 linhas de dados + 3 extras medicamentos + 1 anotações + 8 linhas
-        ficha_h = 26 + 13 * linha_h + 10 + linha_h + 8 * linha_h
+        # Calcula altura total da ficha: 13 linhas de dados + 1 anotações + 8 linhas
+        ficha_h = 13 * linha_h + 10 + linha_h + 8 * linha_h
 
         # Verifica se cabe na página; se não, cria nova página
         if y_ficha_topo - ficha_h < margem_y:
@@ -855,21 +873,14 @@ def exportar_pdf(pid):
         c.setLineWidth(0.9)
         c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
 
-        # Título da ficha
-        c.setFillColor(colors.HexColor("#4A9ACB"))
-        c.rect(ficha_x, y_ficha_topo - 26, ficha_w, 26, fill=1, stroke=0)
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(ficha_x + pad_x, y_ficha_topo - 18, "Ficha de Atendimento")
-
-        y = y_ficha_topo - 26 - linha_h + 4
+        y = y_ficha_topo - linha_h + 4
 
         def linha_sep(y_pos):
             c.setStrokeColor(colors.HexColor("#111111"))
             c.setLineWidth(0.8)
             c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
 
-        def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None):
+        def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None, destaque_valor=False):
             """Desenha label: valor — ou sublinhado tracejado se vazio."""
             c.setFillColor(cor_label or colors.HexColor("#1a1a2e"))
             c.setFont("Helvetica-Bold", fsize)
@@ -886,6 +897,12 @@ def exportar_pdf(pid):
                     txt = txt[:-1]
                 if txt != valor:
                     txt = txt[:-1] + "…"
+
+                if destaque_valor:
+                    txt_w = c.stringWidth(txt, "Helvetica", val_size)
+                    c.setFillColor(colors.HexColor("#FFF7C2"))
+                    c.roundRect(val_x - 2, y_pos - 2, txt_w + 4, val_size + 3, 2, fill=1, stroke=0)
+
                 c.drawString(val_x, y_pos, txt)
             else:
                 c.setStrokeColor(colors.HexColor("#111111"))
@@ -898,7 +915,7 @@ def exportar_pdf(pid):
         end = ficha_x + ficha_w
 
         # Linha 1: NOME | Mãe
-        campo_ficha(ficha_x, y, "NOME", clean(paciente.nome), mid)
+        campo_ficha(ficha_x, y, "NOME", clean(paciente.nome), mid, destaque_valor=True)
         campo_ficha(mid, y, "Mãe", clean(paciente.nome_mae), end)
         linha_sep(y - 6); y -= linha_h
 
@@ -976,8 +993,9 @@ def exportar_pdf(pid):
 
     response = make_response(buffer.getvalue())
     response.headers["Content-Type"] = "application/pdf"
+    nome_arquivo = _nome_arquivo_pdf_paciente(paciente)
     response.headers["Content-Disposition"] = (
-        f"attachment; filename=paciente_{paciente.id}.pdf"
+        f"attachment; filename=\"{nome_arquivo}\"; filename*=UTF-8''{quote(nome_arquivo)}"
     )
     return response
 
