@@ -932,6 +932,10 @@ def exportar_pdf(pid):
 
     response = make_response(buffer.getvalue())
     response.headers["Content-Type"] = "application/pdf"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-PDF-Layout-Version"] = "2026-06-19-v2"
     nome_arquivo = _nome_arquivo_pdf_paciente(paciente)
     response.headers["Content-Disposition"] = (
         f"attachment; filename=\"{nome_arquivo}\"; filename*=UTF-8''{quote(nome_arquivo)}"
