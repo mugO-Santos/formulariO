@@ -800,57 +800,6 @@ def exportar_pdf(pid):
 
             return card_altura
 
-        # Header visual
-        c.setFillColor(colors.HexColor("#4A9ACB"))
-        c.roundRect(margem_x, topo - 70, area_largura, 58, 12, fill=1, stroke=0)
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(margem_x + 16, topo - 36, "Ficha do Paciente")
-        c.setFont("Helvetica", 10)
-        c.drawString(margem_x + 16, topo - 54, f"Emitido em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
-        y_inicio_cards = topo - 92
-        # Logo e nome da clínica com fallback para registros antigos sem clinica_id.
-        clinica = paciente.clinica
-        if clinica is None and paciente.medico is not None:
-            clinica = paciente.medico.clinica
-        if clinica is None and current_user.clinica is not None:
-            clinica = current_user.clinica
-
-        if clinica and clinica.logo_path:
-            from flask import current_app
-            logo_rel = clinica.logo_path.lstrip("/\\")
-            logo_abs = os.path.join(current_app.static_folder, logo_rel)
-            current_app.logger.warning(
-                "PDF logo debug: clinica=%s logo_path=%s logo_abs=%s exists=%s",
-                clinica.id, clinica.logo_path, logo_abs, os.path.isfile(logo_abs),
-            )
-            if os.path.isfile(logo_abs):
-                try:
-                    from reportlab.lib.utils import ImageReader
-                    img = ImageReader(logo_abs)
-                    iw, ih = img.getSize()
-                    max_w, max_h = 125, 50
-                    escala = min(max_w / iw, max_h / ih, 1.0)
-                    dw, dh = iw * escala, ih * escala
-                    ix = margem_x + area_largura - dw - 10
-                    iy = topo - 12 - dh
-                    c.drawImage(logo_abs, ix, iy, width=dw, height=dh, mask="auto")
-                except Exception as exc:
-                    current_app.logger.warning("PDF logo draw error: %s", exc)
-        if clinica and (clinica.nome_impresso or clinica.nome):
-            nome_clinica = clinica.nome_impresso or clinica.nome
-            # Texto abaixo do header, alinhado à direita
-            c.setFillColor(colors.HexColor("#4A9ACB"))
-            c.setFont("Helvetica-Bold", 8)
-            label = nome_clinica[:50]
-            tw = c.stringWidth(label, "Helvetica-Bold", 8)
-            c.drawString(margem_x + area_largura - tw - 10, topo - 78, label)
-
-        medico = "Nao vinculado"
-        if paciente.medico:
-            medico = f"{paciente.medico.nome} - CRM {paciente.medico.crm}"
-
         # ── Ficha de Atendimento (estilo cartão físico para impressão) ────────
         ficha_x = margem_x
         ficha_w = area_largura
@@ -858,10 +807,10 @@ def exportar_pdf(pid):
         pad_x = 8
         fsize = 10
 
-        y_ficha_topo = y_inicio_cards - 10
+        y_ficha_topo = topo
 
-        # Calcula altura total da ficha: 13 linhas de dados + 1 anotações + 8 linhas
-        ficha_h = 13 * linha_h + 10 + linha_h + 8 * linha_h
+        # Calcula altura total da ficha: 10 linhas de dados + medicamento + observacoes (4 linhas)
+        ficha_h = 15 * linha_h + 10
 
         # Verifica se cabe na página; se não, cria nova página
         if y_ficha_topo - ficha_h < margem_y:
@@ -915,9 +864,8 @@ def exportar_pdf(pid):
         t2  = ficha_x + 2 * ficha_w / 3
         end = ficha_x + ficha_w
 
-        # Linha 1: NOME | Mãe
-        campo_ficha(ficha_x, y, "NOME", clean(paciente.nome), mid, destaque_valor=True)
-        campo_ficha(mid, y, "Mãe", clean(paciente.nome_mae), end)
+        # Linha 1: NOME
+        campo_ficha(ficha_x, y, "NOME", clean(paciente.nome), end, destaque_valor=True)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 2: Endereço
@@ -931,28 +879,27 @@ def exportar_pdf(pid):
         campo_ficha(t2,       y, "CEP",     paciente.cep     or "", end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 4: Tel.Res | Cel (branco)
-        campo_ficha(ficha_x, y, "Tel.Res", paciente.telefone or "", mid)
-        campo_ficha(mid,      y, "Cel",    "",                       end)
+        # Linha 4: Telefone
+        campo_ficha(ficha_x, y, "Telefone", paciente.telefone or "", end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 5: RG | Data Nascimento | Idade
-        campo_ficha(ficha_x, y, "RG",               paciente.rg or "",               t1)
-        campo_ficha(t1,       y, "Data Nascimento",  fmt_data(paciente.data_nascimento), t2)
-        campo_ficha(t2,       y, "Idade",            calcular_idade(paciente.data_nascimento), end)
+        # Linha 5: RG | CPF
+        campo_ficha(ficha_x, y, "RG", paciente.rg or "", mid)
+        campo_ficha(mid, y, "CPF", paciente.cpf or "", end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 6: CPF | Profissão
-        campo_ficha(ficha_x, y, "CPF",      paciente.cpf       or "", mid)
-        campo_ficha(mid,      y, "Profissão", paciente.profissao or "", end)
+        # Linha 6: Data Nasc. | Idade
+        campo_ficha(ficha_x, y, "Data Nasc.", fmt_data(paciente.data_nascimento), mid)
+        campo_ficha(mid, y, "Idade", calcular_idade(paciente.data_nascimento), end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 7: Indicação | Est. Civil
-        campo_ficha(ficha_x, y, "Indicação", paciente.indicacao or "", mid)
-        campo_ficha(mid,      y, "Est. Civil", paciente.estado_civil or "", end)
+        # Linha 7: Profissão | Indicação | Estado Civil
+        campo_ficha(ficha_x, y, "Profissão", paciente.profissao or "", t1)
+        campo_ficha(t1, y, "Indicação", paciente.indicacao or "", t2)
+        campo_ficha(t2, y, "Estado Civil", paciente.estado_civil or "", end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 8: Data da primeira consulta (branco) | E-mail
+        # Linha 8: Data da Primeira Consulta (branco) | E-mail
         campo_ficha(ficha_x, y, "Data da primeira consulta", "", mid)
         campo_ficha(mid,      y, "E-mail", paciente.email or "",  end)
         linha_sep(y - 6); y -= linha_h
@@ -963,26 +910,17 @@ def exportar_pdf(pid):
         campo_ficha(t2, y, "Validade", fmt_data(paciente.convenio_validade), end)
         linha_sep(y - 6); y -= linha_h
 
-        # Linha 10: Médico
-        campo_ficha(ficha_x, y, "Médico", medico, end)
-        linha_sep(y - 6); y -= linha_h
-
-        # Linha 11: Faz uso de algum medicamento (rótulo vermelho, campo branco)
+        # Linha 10: Faz uso de algum medicamento (rótulo vermelho, campo branco)
         campo_ficha(ficha_x, y, "Faz uso de algum medicamento", "",
                     end, cor_label=colors.HexColor("#CC0000"))
         linha_sep(y - 6); y -= linha_h
 
-        # Linhas em branco extras para medicamentos
-        for _ in range(3):
-            linha_sep(y - 6)
-            y -= linha_h
-
-        # Linha Anotações (rótulo azul escuro)
-        campo_ficha(ficha_x, y, "Anotações", "", end)
+        # Linha 11: Observações
+        campo_ficha(ficha_x, y, "Observações", "", end)
         linha_sep(y - 6); y -= linha_h
 
-        # 8 linhas em branco para anotações manuais
-        for _ in range(8):
+        # 4 linhas em branco para observações manuais
+        for _ in range(4):
             linha_sep(y - 6)
             y -= linha_h
 
