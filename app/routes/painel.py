@@ -817,9 +817,8 @@ def exportar_pdf(pid):
         fsize = 10
 
         if layout_pdf == "sem_linhas":
-            # Ajustes para papel já pautado: topo 15mm e passo vertical 6mm.
-            linha_h = 6 * mm
-            y = altura - (15 * mm)
+            linha_h = 8 * mm
+            y = altura - (20 * mm)
 
             def linha_sep(y_pos):
                 return
@@ -855,7 +854,7 @@ def exportar_pdf(pid):
         else:
             linha_h = 22
             y_ficha_topo = topo
-            ficha_h = 15 * linha_h + 10
+            ficha_h = 17 * linha_h + 10
 
             if y_ficha_topo - ficha_h < margem_y:
                 c.showPage()
