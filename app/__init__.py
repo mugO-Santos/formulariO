@@ -9,6 +9,7 @@ from flask import Flask
 from flask_login import current_user
 from sqlalchemy import event, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 from .extensions import db, login_manager
 from .models import Usuario
 
@@ -63,6 +64,7 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = int(os.environ.get("STATIC_CACHE_SECONDS", "86400"))
     if _engine_options:
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = _engine_options
 
@@ -104,7 +106,16 @@ def create_app():
 
         for tentativa in range(2):
             try:
-                usuario = db.session.get(Usuario, uid)
+                usuario = (
+                    Usuario.query
+                    .options(
+                        selectinload(Usuario.cargo),
+                        selectinload(Usuario.clinica),
+                        selectinload(Usuario.clinicas_vinculadas),
+                    )
+                    .filter(Usuario.id == uid)
+                    .first()
+                )
                 if usuario and not usuario.ativo:
                     return None
                 return usuario
@@ -128,8 +139,12 @@ def create_app():
         from .models import Notificacao
 
         base_query = Notificacao.query.filter_by(usuario_id=current_user.id, lida=False)
-        unread_notifs = base_query.order_by(Notificacao.criado_em.desc()).limit(20).all()
-        unread_notifs_count = base_query.count()
+        preview_notifs = base_query.order_by(Notificacao.criado_em.desc()).limit(21).all()
+        unread_notifs = preview_notifs[:20]
+        if len(preview_notifs) <= 20:
+            unread_notifs_count = len(preview_notifs)
+        else:
+            unread_notifs_count = base_query.count()
         return {
             "unread_notifs": unread_notifs,
             "unread_notifs_count": unread_notifs_count,
@@ -239,6 +254,15 @@ def _ensure_runtime_schema_updates():
                     "Falha ao criar coluna 'concluido_em' na tabela 'pacientes'."
                 ) from exc
 
+    # Índices para consultas frequentes do painel e notificações.
+    _ensure_index("ix_notificacoes_usuario_lida_criado", "notificacoes", ["usuario_id", "lida", "criado_em"])
+    _ensure_index("ix_pacientes_status_medico", "pacientes", ["excluido_em", "concluido_em", "medico_id"])
+    _ensure_index("ix_pacientes_status_criado", "pacientes", ["excluido_em", "concluido_em", "criado_em"])
+    _ensure_index("ix_pacientes_clinica", "pacientes", ["clinica_id"])
+    _ensure_index("ix_agendamentos_status_data", "agendamentos", ["status", "excluido_em", "concluido_em", "agendado_para"])
+    _ensure_index("ix_agendamentos_clinica", "agendamentos", ["clinica_id"])
+    _ensure_index("ix_logs_criado", "logs", ["criado_em"])
+
 
 def _ensure_column(inspector, table_name, column_name, column_sql):
     if table_name not in inspector.get_table_names():
@@ -255,6 +279,23 @@ def _ensure_column(inspector, table_name, column_name, column_sql):
         db.session.rollback()
         raise RuntimeError(
             f"Falha ao criar coluna '{column_name}' na tabela '{table_name}'."
+        ) from exc
+
+
+def _ensure_index(index_name, table_name, columns):
+    if not columns:
+        return
+
+    cols_sql = ", ".join(columns)
+    try:
+        db.session.execute(
+            text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({cols_sql})")
+        )
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        raise RuntimeError(
+            f"Falha ao criar indice '{index_name}' na tabela '{table_name}'."
         ) from exc
 
 

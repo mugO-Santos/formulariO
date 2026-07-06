@@ -11,6 +11,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from sqlalchemy import String, cast, func, or_
 from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQLAlchemyError
+from sqlalchemy.orm import load_only, selectinload
 from app.extensions import db
 from app.models import Agendamento, Clinica, Encaminhamento, Paciente, Log
 from app.decorators import nivel_minimo
@@ -103,7 +104,7 @@ def index():
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
         Paciente.concluido_em.is_(None),
-    )
+    ).options(selectinload(Paciente.medico))
     pacientes_sem_medico = (
         base_pacientes
         .filter(Paciente.medico_id.is_(None))
@@ -135,6 +136,7 @@ def index():
 
     pacientes_para_agenda = (
         scoped_pacientes(Paciente.query, current_user)
+        .options(load_only(Paciente.id, Paciente.nome, Paciente.telefone, Paciente.cpf))
         .filter(Paciente.excluido_em.is_(None))
         .order_by(Paciente.nome.asc())
         .limit(250)
@@ -419,7 +421,7 @@ def pacientes_concluidos():
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
         Paciente.concluido_em.isnot(None),
-    )
+    ).options(selectinload(Paciente.medico))
     if busca:
         base_pacientes = base_pacientes.filter(_filtro_busca_paciente(busca))
 
@@ -504,6 +506,7 @@ def agendamentos():
 
     pacientes_para_agenda = (
         scoped_pacientes(Paciente.query, current_user)
+        .options(load_only(Paciente.id, Paciente.nome, Paciente.telefone, Paciente.cpf))
         .filter(Paciente.excluido_em.is_(None))
         .order_by(Paciente.nome.asc())
         .limit(250)
@@ -640,6 +643,7 @@ def editar_agendamento(aid):
 
     pacientes_para_agenda = (
         scoped_pacientes(Paciente.query, current_user)
+        .options(load_only(Paciente.id, Paciente.nome, Paciente.telefone, Paciente.cpf))
         .filter(Paciente.excluido_em.is_(None))
         .order_by(Paciente.nome.asc())
         .limit(250)
