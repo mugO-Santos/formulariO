@@ -728,9 +728,15 @@ def exportar_pdf(pid):
     paciente = _get_paciente_or_404(pid)
     if paciente.excluido:
         abort(404)
+
+    layout_pdf = request.args.get("layout", "com_linhas").strip().lower()
+    if layout_pdf not in {"com_linhas", "sem_linhas"}:
+        layout_pdf = "com_linhas"
+
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
+        from reportlab.lib.units import mm
     except ImportError:
         flash("Falha ao gerar PDF neste ambiente. Dependência ReportLab não encontrada.", "danger")
         return redirect(url_for("painel.ver_paciente", pid=pid))
@@ -804,48 +810,35 @@ def exportar_pdf(pid):
 
             return card_altura
 
-        # ── Ficha de Atendimento (estilo cartão físico para impressão) ────────
+        # ── Ficha de Atendimento (duas versões: com e sem linhas) ─────────────
         ficha_x = margem_x
         ficha_w = area_largura
-        linha_h = 22
         pad_x = 8
         fsize = 10
 
-        y_ficha_topo = topo
+        if layout_pdf == "sem_linhas":
+            # Ajustes para papel já pautado: topo 15mm e passo vertical 6mm.
+            linha_h = 6 * mm
+            y = altura - (15 * mm)
 
-        # Calcula altura total da ficha: 10 linhas de dados + medicamento + observacoes (4 linhas)
-        ficha_h = 15 * linha_h + 10
+            def linha_sep(y_pos):
+                return
 
-        # Verifica se cabe na página; se não, cria nova página
-        if y_ficha_topo - ficha_h < margem_y:
-            c.showPage()
-            y_ficha_topo = altura - margem_y
+            def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None, destaque_valor=False):
+                c.setFillColor(cor_label or colors.HexColor("#1a1a2e"))
+                c.setFont("Helvetica-Bold", fsize)
+                c.drawString(x + pad_x, y_pos, f"{label}:")
+                lw = c.stringWidth(f"{label}:", "Helvetica-Bold", fsize)
+                val_x = x + pad_x + lw + 3
+                available = col_end - val_x - pad_x
 
-        # Borda externa
-        c.setStrokeColor(colors.HexColor("#111111"))
-        c.setLineWidth(0.9)
-        c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
+                if not valor:
+                    return
 
-        y = y_ficha_topo - linha_h + 4
-
-        def linha_sep(y_pos):
-            c.setStrokeColor(colors.HexColor("#111111"))
-            c.setLineWidth(0.8)
-            c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
-
-        def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None, destaque_valor=False):
-            """Desenha label: valor — ou sublinhado tracejado se vazio."""
-            c.setFillColor(cor_label or colors.HexColor("#1a1a2e"))
-            c.setFont("Helvetica-Bold", fsize)
-            c.drawString(x + pad_x, y_pos, f"{label}:")
-            lw = c.stringWidth(f"{label}:", "Helvetica-Bold", fsize)
-            val_x = x + pad_x + lw + 3
-            available = col_end - val_x - pad_x
-            if valor:
                 val_size = 11
                 c.setFillColor(colors.HexColor("#000000"))
                 c.setFont("Helvetica", val_size)
-                txt = valor
+                txt = str(valor)
                 while c.stringWidth(txt, "Helvetica", val_size) > available and len(txt) > 1:
                     txt = txt[:-1]
                 if txt != valor:
@@ -855,17 +848,63 @@ def exportar_pdf(pid):
                     txt_w = c.stringWidth(txt, "Helvetica", val_size)
                     c.setFillColor(colors.HexColor("#FFF7C2"))
                     c.roundRect(val_x - 2, y_pos - 2, txt_w + 4, val_size + 3, 2, fill=1, stroke=0)
+                    c.setFillColor(colors.HexColor("#000000"))
 
-                c.setFillColor(colors.HexColor("#000000"))
                 c.drawString(val_x, y_pos, txt)
-            else:
+
+        else:
+            linha_h = 22
+            y_ficha_topo = topo
+            ficha_h = 15 * linha_h + 10
+
+            if y_ficha_topo - ficha_h < margem_y:
+                c.showPage()
+                y_ficha_topo = altura - margem_y
+
+            c.setStrokeColor(colors.HexColor("#111111"))
+            c.setLineWidth(0.9)
+            c.rect(ficha_x, y_ficha_topo - ficha_h, ficha_w, ficha_h, fill=0, stroke=1)
+
+            y = y_ficha_topo - linha_h + 4
+
+            def linha_sep(y_pos):
                 c.setStrokeColor(colors.HexColor("#111111"))
                 c.setLineWidth(0.8)
-                c.line(val_x, y_pos - 1, col_end - pad_x, y_pos - 1)
+                c.line(ficha_x, y_pos, ficha_x + ficha_w, y_pos)
+
+            def campo_ficha(x, y_pos, label, valor, col_end, cor_label=None, destaque_valor=False):
+                """Desenha label: valor — ou sublinhado tracejado se vazio."""
+                c.setFillColor(cor_label or colors.HexColor("#1a1a2e"))
+                c.setFont("Helvetica-Bold", fsize)
+                c.drawString(x + pad_x, y_pos, f"{label}:")
+                lw = c.stringWidth(f"{label}:", "Helvetica-Bold", fsize)
+                val_x = x + pad_x + lw + 3
+                available = col_end - val_x - pad_x
+                if valor:
+                    val_size = 11
+                    c.setFillColor(colors.HexColor("#000000"))
+                    c.setFont("Helvetica", val_size)
+                    txt = valor
+                    while c.stringWidth(txt, "Helvetica", val_size) > available and len(txt) > 1:
+                        txt = txt[:-1]
+                    if txt != valor:
+                        txt = txt[:-1] + "…"
+
+                    if destaque_valor:
+                        txt_w = c.stringWidth(txt, "Helvetica", val_size)
+                        c.setFillColor(colors.HexColor("#FFF7C2"))
+                        c.roundRect(val_x - 2, y_pos - 2, txt_w + 4, val_size + 3, 2, fill=1, stroke=0)
+
+                    c.setFillColor(colors.HexColor("#000000"))
+                    c.drawString(val_x, y_pos, txt)
+                else:
+                    c.setStrokeColor(colors.HexColor("#111111"))
+                    c.setLineWidth(0.8)
+                    c.line(val_x, y_pos - 1, col_end - pad_x, y_pos - 1)
 
         mid = ficha_x + ficha_w / 2
-        t1  = ficha_x + ficha_w / 3
-        t2  = ficha_x + 2 * ficha_w / 3
+        t1 = ficha_x + ficha_w / 3
+        t2 = ficha_x + 2 * ficha_w / 3
         end = ficha_x + ficha_w
 
         # Linha 1: NOME
@@ -879,8 +918,8 @@ def exportar_pdf(pid):
 
         # Linha 3: Bairro | Cidade | CEP
         campo_ficha(ficha_x, y, "Bairro", paciente.bairro or "", t1)
-        campo_ficha(t1,       y, "Cidade",  paciente.cidade  or "", t2)
-        campo_ficha(t2,       y, "CEP",     paciente.cep     or "", end)
+        campo_ficha(t1, y, "Cidade", paciente.cidade or "", t2)
+        campo_ficha(t2, y, "CEP", paciente.cep or "", end)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 4: Telefone
@@ -905,7 +944,7 @@ def exportar_pdf(pid):
 
         # Linha 8: Data da Primeira Consulta (branco) | E-mail
         campo_ficha(ficha_x, y, "Data da primeira consulta", "", mid)
-        campo_ficha(mid,      y, "E-mail", paciente.email or "",  end)
+        campo_ficha(mid, y, "E-mail", paciente.email or "", end)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 9: Convênio | N° | Validade
@@ -915,8 +954,7 @@ def exportar_pdf(pid):
         linha_sep(y - 6); y -= linha_h
 
         # Linha 10: Faz uso de algum medicamento (rótulo vermelho, campo branco)
-        campo_ficha(ficha_x, y, "Faz uso de algum medicamento", "",
-                    end, cor_label=colors.HexColor("#CC0000"))
+        campo_ficha(ficha_x, y, "Faz uso de algum medicamento", "", end, cor_label=colors.HexColor("#CC0000"))
         linha_sep(y - 6); y -= linha_h
 
         # Linha 11: Observações
@@ -939,8 +977,10 @@ def exportar_pdf(pid):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
-    response.headers["X-PDF-Layout-Version"] = "2026-06-19-v2"
+    response.headers["X-PDF-Layout-Version"] = f"2026-07-06-{layout_pdf}"
     nome_arquivo = _nome_arquivo_pdf_paciente(paciente)
+    if layout_pdf == "sem_linhas" and nome_arquivo.lower().endswith(".pdf"):
+        nome_arquivo = f"{nome_arquivo[:-4]}_sem_linhas.pdf"
     response.headers["Content-Disposition"] = (
         f"attachment; filename=\"{nome_arquivo}\"; filename*=UTF-8''{quote(nome_arquivo)}"
     )
