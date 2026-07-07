@@ -1,0 +1,24 @@
+{% extends "base_public.html" %}
+{% block title %}Início{% endblock %}
+
+{% block body %}
+<header class="form-header">
+  <a href="{{ url_for('auth.login') }}" class="form-header__login-link">Área de Login</a>
+</header>
+
+<main class="form-main inicio-main">
+  <section class="inicio-card">
+    <h1 class="inicio-card__title">Bem-vindo</h1>
+    <p class="inicio-card__text">
+      Para iniciar o atendimento, clique no botão abaixo e preencha o formulário de cadastro.
+    </p>
+    <a href="{{ url_for('formulario.preencher_formulario') }}" class="btn btn--primary inicio-card__btn">
+      Preencher Formulário
+    </a>
+  </section>
+</main>
+
+<footer class="form-footer">
+  © 2026 Todos os direitos reservados a &lt;mugO Santos&gt;
+</footer>
+{% endblock %}

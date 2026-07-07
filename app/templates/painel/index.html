@@ -4,6 +4,12 @@
 {% block content %}
 <h1 class="page-title">Pacientes</h1>
 
+{% if limite_triagem_por_medico or limite_triagem_sem_medico %}
+<p class="hint" style="margin-bottom: 1rem;">
+  Para manter o painel rápido, esta tela mostra apenas os perfis mais recentes.
+</p>
+{% endif %}
+
 <div class="painel-grid">
   <section>
 
@@ -62,6 +68,10 @@
     {% endfor %}
   </ul>
 </section>
+{% endif %}
+
+{% if limite_triagem_por_medico or limite_triagem_sem_medico %}
+<p class="hint">Use a aba de pacientes concluídos ou a busca para localizar registros antigos.</p>
 {% endif %}
 
   </section>

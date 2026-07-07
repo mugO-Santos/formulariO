@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import func
+from sqlalchemy.orm import load_only, selectinload
 from app.extensions import db
 from app.models import Clinica, Log, Medico, Paciente
 from app.decorators import superadmin_required
@@ -12,15 +14,36 @@ bp = Blueprint("medicos", __name__, url_prefix="/painel/medicos")
 @login_required
 @superadmin_required
 def index():
-    medicos = scoped_medicos(Medico.query.filter_by(ativo=True), current_user).order_by(Medico.nome).all()
-    contagem = {
-        m.id: Paciente.query.filter_by(medico_id=m.id).filter(
-            Paciente.excluido_em.is_(None)
-        ).count()
-        for m in medicos
-    }
+    medicos = (
+        scoped_medicos(Medico.query.filter_by(ativo=True), current_user)
+        .options(
+            load_only(Medico.id, Medico.nome, Medico.crm, Medico.clinica_id),
+            selectinload(Medico.clinica).load_only(Clinica.id, Clinica.nome),
+        )
+        .order_by(Medico.nome)
+        .all()
+    )
+    medico_ids = [m.id for m in medicos]
+    contagem = {mid: 0 for mid in medico_ids}
+    if medico_ids:
+        linhas_contagem = (
+            db.session.query(Paciente.medico_id, func.count(Paciente.id))
+            .filter(
+                Paciente.medico_id.in_(medico_ids),
+                Paciente.excluido_em.is_(None),
+            )
+            .group_by(Paciente.medico_id)
+            .all()
+        )
+        contagem.update({medico_id: total for medico_id, total in linhas_contagem})
+
     if current_user.acesso_global:
-        clinicas = Clinica.query.filter_by(ativo=True).order_by(Clinica.nome).all()
+        clinicas = (
+            Clinica.query.filter_by(ativo=True)
+            .options(load_only(Clinica.id, Clinica.nome))
+            .order_by(Clinica.nome)
+            .all()
+        )
     else:
         clinicas = [current_user.clinica] if current_user.clinica else []
     return render_template("painel/medicos.html", medicos=medicos, contagem=contagem, clinicas=clinicas)

@@ -128,6 +128,11 @@ def _salvar_formulario(form_data, *, usuario_id=None, clinica_id=None, acao="Per
 
 @bp.route("/", methods=["GET", "POST"])
 def index():
+    return render_template("inicio.html")
+
+
+@bp.route("/formulario", methods=["GET", "POST"])
+def preencher_formulario():
     if request.method == "POST":
         dados_formulario = request.form.to_dict(flat=True)
         for tentativa in range(2):

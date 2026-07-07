@@ -9,7 +9,7 @@ from flask import Flask
 from flask_login import current_user
 from sqlalchemy import event, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 from .extensions import db, login_manager
 from .models import Usuario
 
@@ -139,7 +139,13 @@ def create_app():
         from .models import Notificacao
 
         base_query = Notificacao.query.filter_by(usuario_id=current_user.id, lida=False)
-        preview_notifs = base_query.order_by(Notificacao.criado_em.desc()).limit(21).all()
+        preview_notifs = (
+            base_query
+            .options(load_only(Notificacao.id, Notificacao.mensagem, Notificacao.criado_em, Notificacao.lida))
+            .order_by(Notificacao.criado_em.desc())
+            .limit(21)
+            .all()
+        )
         unread_notifs = preview_notifs[:20]
         if len(preview_notifs) <= 20:
             unread_notifs_count = len(preview_notifs)

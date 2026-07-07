@@ -3,6 +3,8 @@ import os, uuid
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
+from sqlalchemy import func
+from sqlalchemy.orm import load_only, selectinload
 from app.extensions import db
 from app.models import Clinica, Cargo, Medico, Usuario, Log
 from app.decorators import nivel_minimo, superadmin_required
@@ -15,20 +17,62 @@ bp = Blueprint("usuarios", __name__, url_prefix="/painel/usuarios")
 @login_required
 @nivel_minimo(0)
 def index():
-    usuarios = scoped_usuarios(Usuario.query.filter_by(ativo=True), current_user).order_by(Usuario.nome).all()
-    cargos = Cargo.query.order_by(Cargo.nivel).all()
+    usuarios = (
+        scoped_usuarios(Usuario.query.filter_by(ativo=True), current_user)
+        .options(
+            load_only(Usuario.id, Usuario.nome, Usuario.cargo_id, Usuario.clinica_id, Usuario.is_superadmin),
+            selectinload(Usuario.cargo).load_only(Cargo.id, Cargo.nome, Cargo.nivel),
+            selectinload(Usuario.clinica).load_only(Clinica.id, Clinica.nome),
+            selectinload(Usuario.clinicas_vinculadas).load_only(Clinica.id, Clinica.nome),
+        )
+        .order_by(Usuario.nome)
+        .all()
+    )
+    cargos = Cargo.query.options(load_only(Cargo.id, Cargo.nome, Cargo.nivel)).order_by(Cargo.nivel).all()
+
     if current_user.acesso_global:
-        clinicas = Clinica.query.filter_by(ativo=True).order_by(Clinica.nome).all()
-        medicos = Medico.query.filter_by(ativo=True).order_by(Medico.nome).all()
+        clinicas = (
+            Clinica.query.filter_by(ativo=True)
+            .options(load_only(Clinica.id, Clinica.nome, Clinica.medico_responsavel_id, Clinica.eh_hospital))
+            .order_by(Clinica.nome)
+            .all()
+        )
+        medicos = (
+            Medico.query.filter_by(ativo=True)
+            .options(
+                load_only(Medico.id, Medico.nome, Medico.clinica_id),
+                selectinload(Medico.clinica).load_only(Clinica.id, Clinica.nome),
+            )
+            .order_by(Medico.nome)
+            .all()
+        )
     else:
         clinicas = [current_user.clinica] if current_user.clinica else []
-        medicos = scoped_medicos(Medico.query.filter_by(ativo=True), current_user).order_by(Medico.nome).all()
+        medicos = (
+            scoped_medicos(Medico.query.filter_by(ativo=True), current_user)
+            .options(load_only(Medico.id, Medico.nome, Medico.clinica_id))
+            .order_by(Medico.nome)
+            .all()
+        )
+
+    clinica_ids = [c.id for c in clinicas]
+    usuarios_ativos_por_clinica = {cid: 0 for cid in clinica_ids}
+    if clinica_ids:
+        linhas_contagem = (
+            db.session.query(Usuario.clinica_id, func.count(Usuario.id))
+            .filter(Usuario.ativo.is_(True), Usuario.clinica_id.in_(clinica_ids))
+            .group_by(Usuario.clinica_id)
+            .all()
+        )
+        usuarios_ativos_por_clinica.update({cid: total for cid, total in linhas_contagem})
+
     return render_template(
         "painel/usuarios.html",
         usuarios=usuarios,
         cargos=cargos,
         clinicas=clinicas,
         medicos=medicos,
+        usuarios_ativos_por_clinica=usuarios_ativos_por_clinica,
     )
 
 

@@ -5,6 +5,12 @@
 <h1 class="page-title">Pacientes</h1>
 <p class="page-subtitle">Perfis que já passaram pela triagem e foram concluídos.</p>
 
+{% if limite_concluidos_por_medico or limite_concluidos_sem_medico or limite_concluidos_agendamentos %}
+<p class="hint" style="margin-bottom: 1rem;">
+  Para manter esta tela rápida, apenas os registros concluídos mais recentes são exibidos.
+</p>
+{% endif %}
+
 <div style="margin: 0 0 1rem; display: flex; justify-content: flex-end;">
   <a href="{{ url_for('painel.cadastrar_paciente') }}" class="btn btn--primary">Cadastrar Paciente</a>
 </div>

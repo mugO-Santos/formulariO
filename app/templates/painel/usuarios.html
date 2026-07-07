@@ -140,7 +140,7 @@
             É hospital
           </label>
       </td>
-      <td>{{ clinica.usuarios | selectattr('ativo', 'equalto', true) | list | length }}</td>
+      <td>{{ usuarios_ativos_por_clinica.get(clinica.id, 0) }}</td>
       <td style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
           <button type="submit" class="btn btn--sm">Salvar</button>
         </form>

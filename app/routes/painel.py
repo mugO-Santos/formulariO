@@ -9,7 +9,7 @@ from urllib.parse import quote
 from flask import Blueprint, current_app, render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
-from sqlalchemy import String, cast, func, or_
+from sqlalchemy import String, cast, or_
 from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import load_only, selectinload
 from app.extensions import db
@@ -19,6 +19,12 @@ from app.routes.formulario import _salvar_formulario
 from app.scope import pode_gerenciar_paciente, scoped_agendamentos, scoped_pacientes
 
 bp = Blueprint("painel", __name__, url_prefix="/painel")
+
+_TRIAGEM_SEM_MEDICO_MAX = int(os.environ.get("TRIAGEM_SEM_MEDICO_MAX", "120"))
+_TRIAGEM_POR_MEDICO_MAX = int(os.environ.get("TRIAGEM_POR_MEDICO_MAX", "350"))
+_CONCLUIDOS_SEM_MEDICO_MAX = int(os.environ.get("CONCLUIDOS_SEM_MEDICO_MAX", "120"))
+_CONCLUIDOS_POR_MEDICO_MAX = int(os.environ.get("CONCLUIDOS_POR_MEDICO_MAX", "350"))
+_CONCLUIDOS_AGENDAMENTOS_MAX = int(os.environ.get("CONCLUIDOS_AGENDAMENTOS_MAX", "250"))
 
 
 def _paciente_query():
@@ -99,35 +105,50 @@ def _parse_data_convenio(data_raw):
 @bp.route("/")
 @login_required
 def index():
-    from app.models import Medico
-
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
         Paciente.concluido_em.is_(None),
-    ).options(selectinload(Paciente.medico))
-    pacientes_sem_medico = (
+    ).options(
+        selectinload(Paciente.medico),
+        load_only(
+            Paciente.id,
+            Paciente.nome,
+            Paciente.observacoes,
+            Paciente.medico_id,
+            Paciente.criado_em,
+            Paciente.clinica_id,
+            Paciente.nome_medico_digitado,
+        ),
+    )
+    pacientes_sem_medico_preview = (
         base_pacientes
         .filter(Paciente.medico_id.is_(None))
         .order_by(Paciente.criado_em.desc())
+        .limit(_TRIAGEM_SEM_MEDICO_MAX + 1)
         .all()
     )
+    limite_triagem_sem_medico = len(pacientes_sem_medico_preview) > _TRIAGEM_SEM_MEDICO_MAX
+    pacientes_sem_medico = pacientes_sem_medico_preview[:_TRIAGEM_SEM_MEDICO_MAX]
 
-    pacientes_por_medico = (
+    pacientes_por_medico_preview = (
         base_pacientes
         .filter(Paciente.medico_id.isnot(None))
         .order_by(Paciente.criado_em.desc())
+        .limit(_TRIAGEM_POR_MEDICO_MAX + 1)
         .all()
     )
+    limite_triagem_por_medico = len(pacientes_por_medico_preview) > _TRIAGEM_POR_MEDICO_MAX
+    pacientes_por_medico = pacientes_por_medico_preview[:_TRIAGEM_POR_MEDICO_MAX]
+
     mapa_pacientes = defaultdict(list)
+    medicos = {}
     ultimo_por_medico = {}
     for p in pacientes_por_medico:
         mapa_pacientes[p.medico_id].append(p)
         ultimo_por_medico.setdefault(p.medico_id, p.criado_em)
+        if p.medico is not None:
+            medicos[p.medico_id] = p.medico
 
-    medicos = {
-        m.id: m
-        for m in Medico.query.filter(Medico.id.in_(mapa_pacientes.keys())).all()
-    }
     grupos = []
     for medico_id, _ in sorted(ultimo_por_medico.items(), key=lambda item: item[1], reverse=True):
         medico = medicos.get(medico_id)
@@ -159,6 +180,8 @@ def index():
         "painel/index.html",
         grupos=grupos,
         pacientes_sem_medico=pacientes_sem_medico,
+        limite_triagem_sem_medico=limite_triagem_sem_medico,
+        limite_triagem_por_medico=limite_triagem_por_medico,
         pacientes_para_agenda=pacientes_para_agenda,
         proximos_agendamentos=proximos_agendamentos,
     )
@@ -414,40 +437,54 @@ def desconcluir_paciente(pid):
 @bp.route("/pacientes")
 @login_required
 def pacientes_concluidos():
-    from app.models import Medico
-
     busca = request.args.get("q", "").strip()
 
     base_pacientes = scoped_pacientes(Paciente.query, current_user).filter(
         Paciente.excluido_em.is_(None),
         Paciente.concluido_em.isnot(None),
-    ).options(selectinload(Paciente.medico))
+    ).options(
+        selectinload(Paciente.medico),
+        load_only(
+            Paciente.id,
+            Paciente.nome,
+            Paciente.medico_id,
+            Paciente.concluido_em,
+            Paciente.clinica_id,
+            Paciente.nome_medico_digitado,
+        ),
+    )
     if busca:
         base_pacientes = base_pacientes.filter(_filtro_busca_paciente(busca))
 
-    pacientes_sem_medico = (
+    pacientes_sem_medico_preview = (
         base_pacientes
         .filter(Paciente.medico_id.is_(None))
         .order_by(Paciente.concluido_em.desc())
+        .limit(_CONCLUIDOS_SEM_MEDICO_MAX + 1)
         .all()
     )
+    limite_concluidos_sem_medico = len(pacientes_sem_medico_preview) > _CONCLUIDOS_SEM_MEDICO_MAX
+    pacientes_sem_medico = pacientes_sem_medico_preview[:_CONCLUIDOS_SEM_MEDICO_MAX]
 
-    pacientes_por_medico = (
+    pacientes_por_medico_preview = (
         base_pacientes
         .filter(Paciente.medico_id.isnot(None))
         .order_by(Paciente.concluido_em.desc())
+        .limit(_CONCLUIDOS_POR_MEDICO_MAX + 1)
         .all()
     )
+    limite_concluidos_por_medico = len(pacientes_por_medico_preview) > _CONCLUIDOS_POR_MEDICO_MAX
+    pacientes_por_medico = pacientes_por_medico_preview[:_CONCLUIDOS_POR_MEDICO_MAX]
+
     mapa_pacientes = defaultdict(list)
+    medicos = {}
     ultimo_por_medico = {}
     for p in pacientes_por_medico:
         mapa_pacientes[p.medico_id].append(p)
         ultimo_por_medico.setdefault(p.medico_id, p.concluido_em)
+        if p.medico is not None:
+            medicos[p.medico_id] = p.medico
 
-    medicos = {
-        m.id: m
-        for m in Medico.query.filter(Medico.id.in_(mapa_pacientes.keys())).all()
-    }
     grupos = []
     for medico_id, _ in sorted(ultimo_por_medico.items(), key=lambda item: item[1], reverse=True):
         medico = medicos.get(medico_id)
@@ -464,16 +501,21 @@ def pacientes_concluidos():
     )
     if busca:
         agendamentos_concluidos = agendamentos_concluidos.filter(_filtro_busca_agendamento(busca))
-    agendamentos_concluidos = agendamentos_concluidos.order_by(
+    agendamentos_concluidos_preview = agendamentos_concluidos.order_by(
         Agendamento.concluido_em.desc(),
         Agendamento.id.desc(),
-    ).all()
+    ).limit(_CONCLUIDOS_AGENDAMENTOS_MAX + 1).all()
+    limite_concluidos_agendamentos = len(agendamentos_concluidos_preview) > _CONCLUIDOS_AGENDAMENTOS_MAX
+    agendamentos_concluidos = agendamentos_concluidos_preview[:_CONCLUIDOS_AGENDAMENTOS_MAX]
 
     return render_template(
         "painel/pacientes.html",
         grupos=grupos,
         pacientes_sem_medico=pacientes_sem_medico,
         agendamentos_concluidos=agendamentos_concluidos,
+        limite_concluidos_sem_medico=limite_concluidos_sem_medico,
+        limite_concluidos_por_medico=limite_concluidos_por_medico,
+        limite_concluidos_agendamentos=limite_concluidos_agendamentos,
         q=busca,
     )
 

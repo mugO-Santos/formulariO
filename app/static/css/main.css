@@ -132,6 +132,33 @@ a:hover { text-decoration: underline; }
   width: 100%;
   max-width: 680px;
 }
+.inicio-main {
+  align-items: center;
+}
+.inicio-card {
+  background: var(--branco);
+  border: 1px solid #e6eef7;
+  box-shadow: var(--sombra);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 560px;
+  padding: 36px 34px;
+  text-align: center;
+}
+.inicio-card__title {
+  color: var(--azul);
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+}
+.inicio-card__text {
+  color: #425466;
+  margin-bottom: 24px;
+  line-height: 1.55;
+}
+.inicio-card__btn {
+  min-width: 230px;
+  justify-content: center;
+}
 .form-card form { display: flex; flex-direction: column; }
 .form-card__title { font-size: 1.4rem; color: var(--azul); margin-bottom: 24px; text-align: center; }
 .form-card--sucesso { text-align: center; padding: 60px; }
@@ -252,6 +279,19 @@ a:hover { text-decoration: underline; }
     padding: 20px 14px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(26, 111, 180, 0.09);
+  }
+
+  .inicio-card {
+    padding: 24px 16px;
+  }
+
+  .inicio-card__title {
+    font-size: 1.35rem;
+  }
+
+  .inicio-card__btn {
+    width: 100%;
+    min-width: 0;
   }
 
   .form-card__title {
