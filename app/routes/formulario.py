@@ -9,6 +9,32 @@ from app.fuzzy import buscar_medico
 bp = Blueprint("formulario", __name__)
 
 
+def _validar_campos_obrigatorios(form_data):
+    campos_obrigatorios = {
+        "nome": "Nome do Paciente",
+        "nome_mae": "Nome da Mãe",
+        "cpf": "CPF",
+        "rg": "RG",
+        "data_nascimento": "Data de Nascimento",
+        "estado_civil": "Estado Civil",
+        "email": "E-mail",
+        "telefone": "Telefone",
+        "cep": "CEP",
+        "endereco": "Endereço",
+        "numero": "Número",
+        "bairro": "Bairro",
+        "cidade": "Cidade",
+    }
+
+    for campo, label in campos_obrigatorios.items():
+        valor = (form_data.get(campo, "") or "").strip()
+        if not valor:
+            raise ValueError(f"O campo '{label}' é obrigatório.")
+
+    if not form_data.get("aceite_lgpd"):
+        raise ValueError("Você precisa aceitar o termo LGPD para continuar.")
+
+
 def _validar_tamanhos_campos(form_data):
     labels = {
         "nome": "Nome do Paciente",
@@ -101,6 +127,7 @@ def _montar_paciente(form_data, medico, clinica_id=None):
 
 
 def _salvar_formulario(form_data, *, usuario_id=None, clinica_id=None, acao="Perfil criado via formulário público"):
+    _validar_campos_obrigatorios(form_data)
     _validar_tamanhos_campos(form_data)
     nome_medico = form_data.get("nome_medico", "").strip()
     medico = buscar_medico(nome_medico) if nome_medico else None
