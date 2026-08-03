@@ -65,6 +65,15 @@
     </dl>
   </section>
 
+  <section class="perfil__section">
+    <h2>Convênio</h2>
+    <dl class="dados">
+      <dt>Nome do Convênio</dt><dd>{{ convenio_nome_exibicao or '—' }}</dd>
+      <dt>Número da Carteirinha</dt><dd>{{ convenio_numero_exibicao or '—' }}</dd>
+      <dt>Validade</dt><dd>{{ convenio_validade_exibicao.strftime('%d/%m/%Y') if convenio_validade_exibicao else '—' }}</dd>
+    </dl>
+  </section>
+
   {% if current_user.admin_clinica %}
   <section class="perfil__section">
     <h2>LGPD</h2>

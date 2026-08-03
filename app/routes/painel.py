@@ -102,6 +102,34 @@ def _parse_data_convenio(data_raw):
         return "invalid"
 
 
+def _dados_convenio_exibicao(paciente):
+    convenio_nome = paciente.convenio_nome
+    convenio_numero = paciente.convenio_numero
+    convenio_validade = paciente.convenio_validade
+
+    if convenio_nome and convenio_numero and convenio_validade:
+        return convenio_nome, convenio_numero, convenio_validade
+
+    agendamentos = (
+        _agendamento_query()
+        .filter(Agendamento.paciente_id == paciente.id)
+        .order_by(Agendamento.agendado_para.desc(), Agendamento.id.desc())
+        .all()
+    )
+
+    for agendamento in agendamentos:
+        if not convenio_nome and agendamento.convenio_nome:
+            convenio_nome = agendamento.convenio_nome
+        if not convenio_numero and agendamento.convenio_carteirinha:
+            convenio_numero = agendamento.convenio_carteirinha
+        if not convenio_validade and agendamento.convenio_validade:
+            convenio_validade = agendamento.convenio_validade
+        if convenio_nome and convenio_numero and convenio_validade:
+            break
+
+    return convenio_nome, convenio_numero, convenio_validade
+
+
 @bp.route("/")
 @login_required
 def index():
@@ -265,11 +293,16 @@ def ver_paciente(pid):
             .all()
         )
 
+    convenio_nome_exibicao, convenio_numero_exibicao, convenio_validade_exibicao = _dados_convenio_exibicao(paciente)
+
     return render_template(
         "painel/perfil.html",
         paciente=paciente,
         pode_gerenciar=pode_gerenciar,
         hospitais_destino=hospitais_destino,
+        convenio_nome_exibicao=convenio_nome_exibicao,
+        convenio_numero_exibicao=convenio_numero_exibicao,
+        convenio_validade_exibicao=convenio_validade_exibicao,
     )
 
 
@@ -771,6 +804,8 @@ def exportar_pdf(pid):
     if paciente.excluido:
         abort(404)
 
+    convenio_nome_exibicao, convenio_numero_exibicao, convenio_validade_exibicao = _dados_convenio_exibicao(paciente)
+
     layout_pdf = request.args.get("layout", "com_linhas").strip().lower()
     if layout_pdf not in {"com_linhas", "sem_linhas"}:
         layout_pdf = "com_linhas"
@@ -989,9 +1024,9 @@ def exportar_pdf(pid):
         linha_sep(y - 6); y -= linha_h
 
         # Linha 9: Convênio | N° | Validade
-        campo_ficha(ficha_x, y, "Convênio", paciente.convenio_nome or "", t1)
-        campo_ficha(t1, y, "N°", paciente.convenio_numero or "", t2)
-        campo_ficha(t2, y, "Validade", fmt_data(paciente.convenio_validade), end)
+        campo_ficha(ficha_x, y, "Convênio", convenio_nome_exibicao or "", t1)
+        campo_ficha(t1, y, "N°", convenio_numero_exibicao or "", t2)
+        campo_ficha(t2, y, "Validade", fmt_data(convenio_validade_exibicao), end)
         linha_sep(y - 6); y -= linha_h
 
         # Linha 10: Faz uso de algum medicamento (rótulo vermelho, campo branco)
