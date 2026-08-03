@@ -65,6 +65,27 @@ if (cepInput) {
   });
 }
 
+// Toggle do bloco de convênio
+const convenioTipo = document.getElementById('convenio_tipo');
+const convenioDetalhes = document.getElementById('convenio-detalhes');
+const convenioNome = document.getElementById('convenio_nome');
+const convenioNumero = document.getElementById('convenio_numero');
+
+function toggleConvenioDetalhes() {
+  if (!convenioTipo || !convenioDetalhes) return;
+  const mostrar = convenioTipo.value === 'Convenio' || convenioTipo.value === 'Convênio';
+  convenioDetalhes.style.display = mostrar ? 'flex' : 'none';
+  if (!mostrar) {
+    if (convenioNome) convenioNome.value = '';
+    if (convenioNumero) convenioNumero.value = '';
+  }
+}
+
+if (convenioTipo) {
+  convenioTipo.addEventListener('change', toggleConvenioDetalhes);
+  toggleConvenioDetalhes();
+}
+
 // Toggle visibilidade de senha
 const btnVerSenha = document.getElementById('btn-ver-senha');
 if (btnVerSenha) {

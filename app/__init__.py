@@ -43,11 +43,7 @@ def create_app():
     # ── Configuração ──────────────────────────────────────────────
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or secrets.token_urlsafe(48)
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///formulario.db")
-    _engine_options = {
-        "pool_pre_ping": True,
-        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "300")),
-        "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", "30")),
-    }
+    _engine_options = {}
 
     # pg8000 requires postgresql+pg8000:// dialect prefix
     if _db_url.startswith("postgres://"):
@@ -55,8 +51,13 @@ def create_app():
     elif _db_url.startswith("postgresql://"):
         _db_url = _db_url.replace("postgresql://", "postgresql+pg8000://", 1)
 
-    # pg8000 não aceita sslmode/channel_binding na URL; usa ssl_context separadamente
     if "postgresql+pg8000://" in _db_url:
+        _engine_options.update({
+            "pool_pre_ping": True,
+            "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "300")),
+            "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", "30")),
+        })
+        # pg8000 não aceita sslmode/channel_binding na URL; usa ssl_context separadamente
         _db_url = re.sub(r"[?&]sslmode=[^&]*", "", _db_url)
         _db_url = re.sub(r"[?&]channel_binding=[^&]*", "", _db_url)
         _db_url = re.sub(r"\?&", "?", _db_url).rstrip("?").rstrip("&")
@@ -245,6 +246,7 @@ def _ensure_runtime_schema_updates():
     _ensure_column(inspector, "pacientes", "convenio_nome", "VARCHAR(120)")
     _ensure_column(inspector, "pacientes", "convenio_numero", "VARCHAR(60)")
     _ensure_column(inspector, "pacientes", "convenio_validade", "DATE")
+    _ensure_column(inspector, "pacientes", "forma_pagamento", "VARCHAR(30)")
     _ensure_column(inspector, "pacientes", "indicacao", "VARCHAR(120)")
     _ensure_varchar_length(inspector, "pacientes", "numero", 40)
 

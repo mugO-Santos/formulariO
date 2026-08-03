@@ -9,6 +9,15 @@ from app.fuzzy import buscar_medico
 bp = Blueprint("formulario", __name__)
 
 
+def _normalizar_convenio_tipo(form_data):
+    valor = (form_data.get("convenio_tipo", "") or "").strip()
+    if valor in {"Convenio", "Convênio", "convenio"}:
+        return "Convenio"
+    if valor in {"Particular", "particular"}:
+        return "Particular"
+    return None
+
+
 def _validar_campos_obrigatorios(form_data):
     campos_obrigatorios = {
         "nome": "Nome do Paciente",
@@ -31,6 +40,16 @@ def _validar_campos_obrigatorios(form_data):
         if not valor:
             raise ValueError(f"O campo '{label}' é obrigatório.")
 
+    convenio_tipo = _normalizar_convenio_tipo(form_data)
+    if not convenio_tipo:
+        raise ValueError("Selecione se o paciente é Particular ou possui Convênio Médico.")
+
+    if convenio_tipo == "Convenio":
+        if not (form_data.get("convenio_nome", "") or "").strip():
+            raise ValueError("Informe o nome do convênio.")
+        if not (form_data.get("convenio_numero", "") or "").strip():
+            raise ValueError("Informe o número da carteirinha do convênio.")
+
     if not form_data.get("aceite_lgpd"):
         raise ValueError("Você precisa aceitar o termo LGPD para continuar.")
 
@@ -52,6 +71,7 @@ def _validar_tamanhos_campos(form_data):
         "cidade": "Cidade",
         "convenio_nome": "Convênio",
         "convenio_numero": "N° da carteirinha",
+        "forma_pagamento": "Forma de pagamento",
         "indicacao": "Indicação",
     }
 
@@ -98,6 +118,13 @@ def _montar_paciente(form_data, medico, clinica_id=None):
     else:
         convenio_validade = None
 
+    convenio_tipo = _normalizar_convenio_tipo(form_data)
+    convenio_nome = None
+    convenio_numero = None
+    if convenio_tipo == "Convenio":
+        convenio_nome = form_data.get("convenio_nome", "").strip() or None
+        convenio_numero = form_data.get("convenio_numero", "").strip() or None
+
     nome_medico = form_data.get("nome_medico", "").strip()
     return Paciente(
         nome=nome,
@@ -114,9 +141,10 @@ def _montar_paciente(form_data, medico, clinica_id=None):
         numero=form_data.get("numero", "").strip() or None,
         bairro=form_data.get("bairro", "").strip() or None,
         cidade=form_data.get("cidade", "").strip() or None,
-        convenio_nome=form_data.get("convenio_nome", "").strip() or None,
-        convenio_numero=form_data.get("convenio_numero", "").strip() or None,
+        convenio_nome=convenio_nome,
+        convenio_numero=convenio_numero,
         convenio_validade=convenio_validade,
+        forma_pagamento=(form_data.get("forma_pagamento", "").strip() or None),
         indicacao=form_data.get("indicacao", "").strip() or None,
         medico_id=medico.id if medico else None,
         clinica_id=medico.clinica_id if medico else clinica_id,
